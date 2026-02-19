@@ -109,8 +109,8 @@ class StressDetectionModel:
             return self.model.predict_proba(X_normalized)
         else:
             # For models without predict_proba (like SVM), estimate from decision function
-            decision = self.model.decision_function(X_normalized)
-            proba = 1 / (1 + np.exp(-decision))  # Sigmoid
+            decision_scores = self.model.decision_function(X_normalized)
+            proba = 1 / (1 + np.exp(-decision_scores))  # Sigmoid
             return np.column_stack([1 - proba, proba])
     
     def cross_validate(self, X: np.ndarray, y: np.ndarray, 

@@ -139,14 +139,14 @@ class FeatureExtractor:
                     # HRV - Frequency domain
                     try:
                         # Compute power spectral density using Welch method
-                        f, pxx = scipy_signal.welch(ibi, fs=1000/np.mean(ibi), nperseg=min(256, len(ibi)))
+                        frequency_bins, power_spectral_density = scipy_signal.welch(ibi, fs=1000/np.mean(ibi), nperseg=min(256, len(ibi)))
                         
                         # LF (0.04-0.15 Hz) and HF (0.15-0.4 Hz) bands
-                        lf_mask = (f >= 0.04) & (f <= 0.15)
-                        hf_mask = (f >= 0.15) & (f <= 0.4)
+                        lf_mask = (frequency_bins >= 0.04) & (frequency_bins <= 0.15)
+                        hf_mask = (frequency_bins >= 0.15) & (frequency_bins <= 0.4)
                         
-                        lf_power = np.sum(pxx[lf_mask])
-                        hf_power = np.sum(pxx[hf_mask])
+                        lf_power = np.sum(power_spectral_density[lf_mask])
+                        hf_power = np.sum(power_spectral_density[hf_mask])
                         
                         features['bvp_hrv_lf'] = lf_power
                         features['bvp_hrv_hf'] = hf_power
@@ -249,19 +249,19 @@ class FeatureExtractor:
             
             if filter_type == "lowpass":
                 normalized_cutoff = cutoff_freq / nyquist
-                b, a = scipy_signal.butter(filter_order, normalized_cutoff, btype='low')
+                filter_b_coeffs, filter_a_coeffs = scipy_signal.butter(filter_order, normalized_cutoff, btype='low')
             elif filter_type == "highpass":
                 normalized_cutoff = cutoff_freq / nyquist
-                b, a = scipy_signal.butter(filter_order, normalized_cutoff, btype='high')
+                filter_b_coeffs, filter_a_coeffs = scipy_signal.butter(filter_order, normalized_cutoff, btype='high')
             elif filter_type == "bandpass":
-                normalized_cutoff = [f / nyquist for f in cutoff_freq]
-                b, a = scipy_signal.butter(filter_order, normalized_cutoff, btype='band')
+                normalized_cutoff = [freq / nyquist for freq in cutoff_freq]
+                filter_b_coeffs, filter_a_coeffs = scipy_signal.butter(filter_order, normalized_cutoff, btype='band')
             else:
                 return None
             
             # Apply filter
             filtered_signal = signal.copy()
-            filtered_signal[valid_idx] = scipy_signal.filtfilt(b, a, signal[valid_idx])
+            filtered_signal[valid_idx] = scipy_signal.filtfilt(filter_b_coeffs, filter_a_coeffs, signal[valid_idx])
             
             return filtered_signal
         except Exception as e:

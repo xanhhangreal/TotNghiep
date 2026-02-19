@@ -148,19 +148,19 @@ def fillna(data: np.ndarray, method: str = "forward") -> np.ndarray:
     
     if method == "forward":
         mask = np.isnan(data)
-        idx = np.where(~mask, np.arange(mask.size), 0)
-        np.maximum.accumulate(idx, axis=0, out=idx)
-        return data[idx]
+        fill_indices = np.where(~mask, np.arange(mask.size), 0)
+        np.maximum.accumulate(fill_indices, axis=0, out=fill_indices)
+        return data[fill_indices]
     elif method == "backward":
         mask = np.isnan(data)
-        idx = np.where(~mask, np.arange(mask.size), mask.size-1)
-        idx = np.minimum.accumulate(idx[::-1], axis=0)[::-1]
-        return data[idx]
+        fill_indices = np.where(~mask, np.arange(mask.size), mask.size-1)
+        fill_indices = np.minimum.accumulate(fill_indices[::-1], axis=0)[::-1]
+        return data[fill_indices]
     elif method == "interpolate":
         from scipy.interpolate import interpolate
         nans = np.isnan(data)
-        x = lambda z: z.nonzero()[0]
-        data[nans] = np.interp(x(nans), x(~nans), data[~nans])
+        get_nonzero_indices = lambda z: z.nonzero()[0]
+        data[nans] = np.interp(get_nonzero_indices(nans), get_nonzero_indices(~nans), data[~nans])
         return data
     else:
         raise ValueError(f"Unknown fillna method: {method}")

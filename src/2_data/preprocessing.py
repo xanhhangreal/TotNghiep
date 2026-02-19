@@ -47,8 +47,8 @@ class SignalPreprocessor:
         t_target = np.arange(int(len(signal) * target_sr / original_sr)) / target_sr
         
         # Interpolate
-        f = interp1d(t_original, signal, kind='linear', fill_value='extrapolate')
-        resampled = f(t_target)
+        interpolation_func = interp1d(t_original, signal, kind='linear', fill_value='extrapolate')
+        resampled = interpolation_func(t_target)
         
         return resampled
     
@@ -107,19 +107,19 @@ class SignalPreprocessor:
             
             if filter_type == "lowpass":
                 normalized_cutoff = cutoff_freq / nyquist
-                b, a = scipy_signal.butter(filter_order, normalized_cutoff, btype='low')
+                filter_b_coeffs, filter_a_coeffs = scipy_signal.butter(filter_order, normalized_cutoff, btype='low')
             elif filter_type == "highpass":
                 normalized_cutoff = cutoff_freq / nyquist
-                b, a = scipy_signal.butter(filter_order, normalized_cutoff, btype='high')
+                filter_b_coeffs, filter_a_coeffs = scipy_signal.butter(filter_order, normalized_cutoff, btype='high')
             elif filter_type == "bandpass":
-                normalized_cutoff = [f / nyquist for f in cutoff_freq]
-                b, a = scipy_signal.butter(filter_order, normalized_cutoff, btype='band')
+                normalized_cutoff = [freq / nyquist for freq in cutoff_freq]
+                filter_b_coeffs, filter_a_coeffs = scipy_signal.butter(filter_order, normalized_cutoff, btype='band')
             else:
                 raise ValueError(f"Unknown filter type: {filter_type}")
             
             # Apply filter only to valid data
             filtered_signal = signal.copy()
-            filtered_signal[valid_idx] = scipy_signal.filtfilt(b, a, signal[valid_idx])
+            filtered_signal[valid_idx] = scipy_signal.filtfilt(filter_b_coeffs, filter_a_coeffs, signal[valid_idx])
             
             return filtered_signal
         
@@ -173,22 +173,22 @@ class SignalPreprocessor:
         
         if method == "forward":
             mask = np.isnan(signal)
-            idx = np.where(~mask, np.arange(mask.size), 0)
-            np.maximum.accumulate(idx, axis=0, out=idx)
-            signal = signal[idx]
+            fill_indices = np.where(~mask, np.arange(mask.size), 0)
+            np.maximum.accumulate(fill_indices, axis=0, out=fill_indices)
+            signal = signal[fill_indices]
         
         elif method == "backward":
             mask = np.isnan(signal)
-            idx = np.where(~mask, np.arange(mask.size), mask.size-1)
-            idx = np.minimum.accumulate(idx[::-1], axis=0)[::-1]
-            signal = signal[idx]
+            fill_indices = np.where(~mask, np.arange(mask.size), mask.size-1)
+            fill_indices = np.minimum.accumulate(fill_indices[::-1], axis=0)[::-1]
+            signal = signal[fill_indices]
         
         elif method == "interpolate":
             nans = np.isnan(signal)
-            x = lambda z: z.nonzero()[0]
+            get_nonzero_indices = lambda z: z.nonzero()[0]
             
             if nans.any() and (~nans).any():
-                signal[nans] = np.interp(x(nans), x(~nans), signal[~nans])
+                signal[nans] = np.interp(get_nonzero_indices(nans), get_nonzero_indices(~nans), signal[~nans])
         
         elif method == "mean":
             valid_data = signal[~np.isnan(signal)]
