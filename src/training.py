@@ -3,6 +3,7 @@
 Usage (from project root):
     py -u src/training.py --approach all
     py -u src/training.py --approach loso --subjects 2 3 4
+    py -u src/training.py --approach loso --device both --n-classes 3
 """
 import argparse
 import json
@@ -29,7 +30,11 @@ logger = logging.getLogger(__name__)
 def extract_subject_features(
     subject: Dict, window_sec: int = 60, step_sec: int = 30,
 ) -> Tuple[np.ndarray, np.ndarray, List[str]]:
-    """Preprocess signals → sliding-window features + majority-vote labels."""
+    """Preprocess signals → sliding-window features + majority-vote labels.
+
+    Automatically handles wrist-only, chest-only, or combined (``both``)
+    signal keys based on what is present in ``subject['signals']``.
+    """
     signals = subject["signals"]
     sr_dict = subject["sampling_rates"]
     binary = subject["binary_labels"]
@@ -38,25 +43,33 @@ def extract_subject_features(
     # lowercase keys for preprocessing / feature extraction
     sig_lower = {}
     sr_lower = {}
-    for key in ("EDA", "BVP", "TEMP"):
-        if key in signals:
-            sig_lower[key.lower()] = signals[key].astype(float)
-            sr_lower[key.lower()] = sr_dict.get(key, 4)
+    for key, arr in signals.items():
+        sig_lower[key.lower()] = arr.astype(float)
+        sr_lower[key.lower()] = sr_dict.get(key, 4)
 
     preprocessed = preprocess_wesad_signal(sig_lower, sr_lower, target_sr=4)
 
-    # Build feature-extraction input: EDA/TEMP @ 4 Hz, BVP @ native rate
+    # Build feature-extraction input: use preprocessed for low-rate signals,
+    # raw for BVP/ECG/EMG/Resp (need native SR for peak detection).
     feat_sig: Dict[str, np.ndarray] = {}
     feat_sr: Dict[str, int] = {}
-    for k in ("eda", "temp"):
-        if k in preprocessed:
+
+    _native_keys = {"bvp", "wrist_bvp", "ecg", "chest_ecg",
+                    "emg", "chest_emg", "resp", "chest_resp"}
+
+    for k in preprocessed:
+        low = k.lower()
+        if low in _native_keys:
+            raw_key = next((rk for rk in sig_lower if rk.lower() == low), None)
+            if raw_key:
+                feat_sig[k] = sig_lower[raw_key]
+                feat_sr[k] = sr_lower[raw_key]
+        else:
             feat_sig[k] = preprocessed[k]
             feat_sr[k] = 4
-    if "bvp" in sig_lower:
-        feat_sig["bvp"] = sig_lower["bvp"]
-        feat_sr["bvp"] = sr_lower["bvp"]
 
-    rows = FeatureExtractor.extract_windows(feat_sig, feat_sr, window_sec, step_sec)
+    rows = FeatureExtractor.extract_windows(feat_sig, feat_sr,
+                                            window_sec, step_sec)
     if not rows:
         return np.array([]), np.array([]), []
 
@@ -82,8 +95,9 @@ def extract_subject_features(
     ok = y >= 0
     X, y = X[ok], y[ok]
     sid = subject["subject_id"]
-    logger.info("  S%d: %d windows (baseline=%d, stress=%d)",
-                sid, len(X), (y == 0).sum(), (y == 1).sum())
+    logger.info("  S%d: %d windows (classes: %s)",
+                sid, len(X),
+                {int(v): int((y == v).sum()) for v in np.unique(y)} if len(y) else {})
     return X, y, feat_names
 
 
@@ -164,7 +178,7 @@ def train_subject_independent(data: Dict, *, window_sec=60, step_sec=30,
             results["models"][name]["cm"] = m["confusion_matrix"].tolist()
         except Exception as e:
             results["models"][name] = {"error": str(e)}
-    return results, feat_names
+    return results, feat_names or []
 
 
 def train_loso(data: Dict, *, window_sec=60, step_sec=30) -> Dict:
@@ -252,14 +266,21 @@ def main():
     ap.add_argument("--subjects", type=int, nargs="*", default=None)
     ap.add_argument("--window", type=int, default=WINDOW_SIZE)
     ap.add_argument("--step", type=int, default=WINDOW_STEP)
+    ap.add_argument("--device", default="wrist",
+                    choices=["wrist", "chest", "both"],
+                    help="Sensor device(s) to use")
+    ap.add_argument("--n-classes", type=int, default=2, choices=[2, 3],
+                    help="Number of classes: 2=binary, 3=3-class")
     ap.add_argument("--wesad-dir", type=str, default=None)
     args = ap.parse_args()
 
     logging.basicConfig(level=logging.INFO,
                         format="%(asctime)s %(name)s %(levelname)s %(message)s")
 
-    logger.info("Loading WESAD …")
-    data = load_wesad(subject_ids=args.subjects, wesad_dir=args.wesad_dir)
+    logger.info("Loading WESAD (device=%s, n_classes=%d) …",
+                args.device, args.n_classes)
+    data = load_wesad(subject_ids=args.subjects, wesad_dir=args.wesad_dir,
+                      device=args.device, n_classes=args.n_classes)
     if not data["subjects"]:
         logger.error("No subjects loaded – check WESAD directory.")
         return

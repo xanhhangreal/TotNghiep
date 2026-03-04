@@ -5,6 +5,10 @@ scipy
 scikit-learn
 joblib
 
+# Deep Learning
+torch>=2.0
+torchvision>=0.15
+
 # Visualization
 matplotlib
 seaborn

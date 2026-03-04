@@ -1,4 +1,7 @@
-"""Signal preprocessing pipeline for physiological data."""
+"""Signal preprocessing pipeline for physiological data.
+
+Supports both wrist (Empatica E4) and chest (RespiBAN) modalities.
+"""
 import numpy as np
 from scipy import signal as scipy_signal
 from scipy.interpolate import interp1d
@@ -160,8 +163,11 @@ def preprocess_wesad_signal(signal_dict: Dict[str, np.ndarray],
                             target_sr: int = 4) -> Dict[str, np.ndarray]:
     """Preprocess WESAD signals → all outputs at *target_sr*.
 
-    BVP is bandpass-filtered at its native 64 Hz **before** downsampling
-    (the 0.7–4 Hz passband requires Nyquist > 4 Hz).
+    Handles both wrist (EDA, BVP, TEMP) and chest (ECG, EMG, EDA, Temp,
+    Resp, ACC) signals.  Keys may be prefixed with ``wrist_`` or ``chest_``
+    when ``device='both'`` is used in the loader.
+
+    BVP/ECG are bandpass-filtered at their native SR **before** downsampling.
     """
     pp = SignalPreprocessor(target_sr)
     result: Dict[str, np.ndarray] = {}
@@ -170,20 +176,66 @@ def preprocess_wesad_signal(signal_dict: Dict[str, np.ndarray],
         if sig is None or len(sig) == 0:
             continue
         sr = sr_dict.get(name, target_sr)
+        low_name = name.lower()
 
-        if name == "bvp":
-            # filter at native SR, THEN downsample
+        # ── BVP (wrist, 64 Hz) ────────────────────────────────────────
+        if low_name in ("bvp", "wrist_bvp"):
             s = pp.remove_artifacts(sig)
             s = pp.apply_filter(s, sr, "bandpass", (0.7, 4.0))
             s = pp.fillna(s)
             s = pp.resample(s, sr, target_sr)
             s = pp.normalize(s)
-        elif name in ("eda", "gsr"):
+
+        # ── EDA (wrist 4 Hz or chest 700 Hz) ──────────────────────────
+        elif low_name in ("eda", "gsr", "wrist_eda", "chest_eda"):
             s = pp.resample(sig, sr, target_sr)
             s = pp.pipeline(s, target_sr, lowpass=1.5)
-        elif name in ("temp", "temperature"):
+
+        # ── TEMP (wrist 4 Hz or chest 700 Hz) ────────────────────────
+        elif low_name in ("temp", "temperature", "wrist_temp",
+                          "chest_temp"):
             s = pp.resample(sig, sr, target_sr)
             s = pp.pipeline(s, target_sr, lowpass=1.0)
+
+        # ── ECG (chest, 700 Hz) ───────────────────────────────────────
+        elif low_name in ("ecg", "chest_ecg"):
+            s = pp.remove_artifacts(sig, z_threshold=4.0)
+            s = pp.apply_filter(s, sr, "bandpass", (0.5, 40.0))
+            s = pp.fillna(s)
+            s = pp.resample(s, sr, target_sr)
+            s = pp.normalize(s)
+
+        # ── EMG (chest, 700 Hz) ───────────────────────────────────────
+        elif low_name in ("emg", "chest_emg"):
+            s = pp.remove_artifacts(sig, z_threshold=4.0)
+            s = pp.apply_filter(s, sr, "bandpass", (20.0, 250.0))
+            s = pp.fillna(s)
+            # rectify → envelope (lowpass at 10 Hz)
+            s = np.abs(s)
+            s = pp.apply_filter(s, sr, "lowpass", 10.0)
+            s = pp.resample(s, sr, target_sr)
+            s = pp.normalize(s)
+
+        # ── Resp (chest, 700 Hz) ──────────────────────────────────────
+        elif low_name in ("resp", "chest_resp"):
+            s = pp.remove_artifacts(sig)
+            s = pp.apply_filter(s, sr, "bandpass", (0.1, 0.5))
+            s = pp.fillna(s)
+            s = pp.resample(s, sr, target_sr)
+            s = pp.normalize(s)
+
+        # ── ACC (wrist 32 Hz or chest 700 Hz, 3-axis) ────────────────
+        elif low_name in ("acc", "wrist_acc", "chest_acc"):
+            if sig.ndim == 2 and sig.shape[1] == 3:
+                # compute magnitude
+                mag = np.sqrt((sig ** 2).sum(axis=1))
+                s = pp.resample(mag, sr, target_sr)
+                s = pp.pipeline(s, target_sr, lowpass=1.5)
+            else:
+                s = pp.resample(sig, sr, target_sr)
+                s = pp.pipeline(s, target_sr)
+
+        # ── fallback ──────────────────────────────────────────────────
         else:
             s = pp.resample(sig, sr, target_sr)
             s = pp.pipeline(s, target_sr)

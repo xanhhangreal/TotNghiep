@@ -1,6 +1,6 @@
 """
 Setup WESAD dataset - Multiple download methods
-Run this script directly: python scripts/setup_wesad.py
+Run this script directly: python src/setup_wesad.py
 """
 import os
 import sys
@@ -9,7 +9,7 @@ import zipfile
 from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).parent.parent
-DATA_DIR = PROJECT_ROOT / "data" / "public"
+DATA_DIR = PROJECT_ROOT / "data"
 WESAD_DIR = DATA_DIR / "WESAD"
 
 def method_1_curl():

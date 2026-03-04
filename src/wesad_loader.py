@@ -1,6 +1,6 @@
 """WESAD dataset loader.
 
-Handles loading pickle files, aligning signals/labels, and binary mapping.
+Handles loading pickle files, aligning signals/labels, and binary/3-class mapping.
 
 WESAD pickle structure:
     data['signal']['wrist']  →  {'ACC','BVP','EDA','TEMP'}
@@ -18,6 +18,7 @@ import logging
 from config import (
     WESAD_DIR, WESAD_SUBJECTS, WESAD_BINARY_MAP,
     WESAD_KEEP_LABELS, WESAD_LABEL_SR, SAMPLING_RATES,
+    CHEST_SAMPLING_RATES, WESAD_3CLASS_MAP, WESAD_KEEP_LABELS_3CLASS,
 )
 
 logger = logging.getLogger(__name__)
@@ -27,7 +28,11 @@ logger = logging.getLogger(__name__)
 
 def load_subject(subject_id: int, wesad_dir: str = None,
                  device: str = "wrist") -> Dict:
-    """Load one WESAD subject → signals dict + raw labels."""
+    """Load one WESAD subject → signals dict + raw labels.
+
+    Args:
+        device: "wrist", "chest", or "both" (all modalities).
+    """
     wesad_dir = Path(wesad_dir or WESAD_DIR)
     pkl = wesad_dir / f"S{subject_id}" / f"S{subject_id}.pkl"
     if not pkl.exists():
@@ -37,21 +42,32 @@ def load_subject(subject_id: int, wesad_dir: str = None,
         raw = pickle.load(f, encoding="latin1")
 
     signals: Dict[str, np.ndarray] = {}
-    if device == "wrist":
+    sr_dict: Dict[str, int] = {}
+
+    # ── wrist signals ─────────────────────────────────────────────────────
+    if device in ("wrist", "both"):
         for key in ("ACC", "BVP", "EDA", "TEMP"):
             arr = raw["signal"]["wrist"].get(key)
             if arr is not None:
-                signals[key] = np.asarray(arr).flatten()
-        sr_dict = {k: v for k, v in SAMPLING_RATES.items() if k in signals}
-    elif device == "chest":
+                s = np.asarray(arr)
+                pref = "wrist_" if device == "both" else ""
+                skey = f"{pref}{key}"
+                signals[skey] = s.flatten() if s.ndim == 1 or (s.ndim > 1 and s.shape[1] == 1) else s
+                sr_dict[skey] = SAMPLING_RATES.get(key, 4)
+
+    # ── chest signals ─────────────────────────────────────────────────────
+    if device in ("chest", "both"):
         for key in ("ACC", "ECG", "EMG", "EDA", "Temp", "Resp"):
             arr = raw["signal"]["chest"].get(key)
             if arr is not None:
                 s = np.asarray(arr)
-                signals[key] = s.flatten() if s.ndim > 1 and s.shape[1] == 1 else s
-        sr_dict = {k: 700 for k in signals}
-    else:
-        raise ValueError(f"Unknown device: {device}")
+                pref = "chest_" if device == "both" else ""
+                skey = f"{pref}{key}"
+                signals[skey] = s.flatten() if s.ndim == 1 or (s.ndim > 1 and s.shape[1] == 1) else s
+                sr_dict[skey] = CHEST_SAMPLING_RATES.get(key, 700)
+
+    if not signals:
+        raise ValueError(f"No signals found for device={device}")
 
     labels = np.asarray(raw["label"]).flatten()
     logger.info("  S%d: %d label samples, signals=%s", subject_id, len(labels), list(signals))
@@ -86,6 +102,18 @@ def to_binary(labels: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
     return binary, valid
 
 
+def to_3class(labels: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
+    """Map WESAD labels → 3-class (0=baseline, 1=stress, 2=amusement).
+
+    Returns (mapped_labels, valid_mask).  Invalid samples get label -1.
+    """
+    valid = np.isin(labels, WESAD_KEEP_LABELS_3CLASS)
+    mapped = np.full_like(labels, -1)
+    for src, dst in WESAD_3CLASS_MAP.items():
+        mapped[labels == src] = dst
+    return mapped, valid
+
+
 # ── align signals + labels ────────────────────────────────────────────────────
 
 def _align(signals: Dict[str, np.ndarray], sr_dict: Dict[str, int],
@@ -103,13 +131,20 @@ def _align(signals: Dict[str, np.ndarray], sr_dict: Dict[str, int],
 # ── main loader ───────────────────────────────────────────────────────────────
 
 def load_wesad(subject_ids: List[int] = None, wesad_dir: str = None,
-               device: str = "wrist") -> Dict:
-    """Load WESAD for multiple subjects with binary labels.
+               device: str = "wrist", n_classes: int = 2) -> Dict:
+    """Load WESAD for multiple subjects with binary or 3-class labels.
+
+    Args:
+        device:    "wrist", "chest", or "both" (all modalities).
+        n_classes: 2 for binary (relaxed/stressed), 3 for 3-class
+                   (baseline/stress/amusement).
 
     Returns ``{'subjects': [<per-subject dict>, ...]}``.
-    Each dict has: subject_id, signals, binary_labels, valid_mask, sampling_rates.
+    Each dict has: subject_id, signals, binary_labels (or mapped_labels),
+    valid_mask, sampling_rates.
     """
     subject_ids = subject_ids or WESAD_SUBJECTS
+    label_fn = to_binary if n_classes == 2 else to_3class
     subjects = []
 
     for sid in subject_ids:
@@ -119,11 +154,11 @@ def load_wesad(subject_ids: List[int] = None, wesad_dir: str = None,
                 raw["signals"], raw["sampling_rates"],
                 raw["labels"], WESAD_LABEL_SR,
             )
-            binary, valid = to_binary(labels_4hz)
+            mapped, valid = label_fn(labels_4hz)
             subjects.append({
                 "subject_id": sid,
                 "signals": signals,
-                "binary_labels": binary,
+                "binary_labels": mapped,
                 "valid_mask": valid,
                 "sampling_rates": raw["sampling_rates"],
             })

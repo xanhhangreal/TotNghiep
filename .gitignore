@@ -1,11 +1,12 @@
 # Data & Models
-data/public/**/*.csv
-data/public/**/*.pkl
-data/public/**/*.hdf5
-data/own/**/*
+data/WESAD/**/*.pkl
+data/WESAD/**/*.csv
+data/WESAD/**/*.hdf5
+data/**/*.zip
 models/**/*.pkl
 models/**/*.pth
-results/**/*
+models/**/*.joblib
+results/**/*.json
 
 # Jupyter
 .ipynb_checkpoints/
