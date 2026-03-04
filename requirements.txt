@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # Core
 numpy
 pandas
@@ -22,3 +23,45 @@ streamlit
 
 # Utilities
 tqdm
+=======
+# Core Data & ML
+numpy==1.24.3
+pandas==2.0.3
+scikit-learn==1.3.0
+scipy==1.11.2
+
+# Deep Learning & Signal Processing
+torch==2.0.1
+torchvision==0.15.2
+librosa==0.10.0
+pywt==1.5.0
+
+# Model Interpretation
+shap==0.42.1
+matplotlib==3.7.2
+seaborn==0.12.2
+plotly==5.16.1
+
+# Jupyter & Notebooks
+jupyter==1.0.0
+jupyterlab==4.0.4
+ipython==8.14.0
+ipywidgets==8.1.0
+
+# Web Framework & Demo
+streamlit==1.27.2
+flask==2.3.2
+
+# Data Handling & Utils
+tqdm==4.66.1
+pyyaml==6.0
+
+# Development
+pylint==2.17.5
+black==23.7.0
+pytest==7.4.0
+
+# Specialized
+neurokit2==0.2.4  # For physiological signal processing
+biosppy==0.7.0    # Alternative to neurokit2
+>>>>>>> 8c60043252f731287d32a5c7796a7892fc60cb19

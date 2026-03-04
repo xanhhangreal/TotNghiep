@@ -1,4 +1,5 @@
 # Data & Models
+<<<<<<< HEAD
 data/WESAD/**/*.pkl
 data/WESAD/**/*.csv
 data/WESAD/**/*.hdf5
@@ -7,6 +8,15 @@ models/**/*.pkl
 models/**/*.pth
 models/**/*.joblib
 results/**/*.json
+=======
+data/public/**/*.csv
+data/public/**/*.pkl
+data/public/**/*.hdf5
+data/own/**/*
+models/**/*.pkl
+models/**/*.pth
+results/**/*
+>>>>>>> 8c60043252f731287d32a5c7796a7892fc60cb19
 
 # Jupyter
 .ipynb_checkpoints/
