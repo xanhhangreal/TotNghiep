@@ -265,7 +265,12 @@ def build_dl_model(arch: str, n_features: int, n_classes: int = 2,
 #  Utility: save / load
 # ═══════════════════════════════════════════════════════════════════════════════
 
-def save_dl_model(model: nn.Module, path: str, meta: Optional[Dict] = None):
+def save_dl_model(
+    model: nn.Module,
+    path: str,
+    meta: Optional[Dict] = None,
+    scaler=None,
+):
     """Save model weights + metadata."""
     Path(path).parent.mkdir(parents=True, exist_ok=True)
     state = {
@@ -276,12 +281,17 @@ def save_dl_model(model: nn.Module, path: str, meta: Optional[Dict] = None):
     }
     if meta:
         state["meta"] = meta
+    if scaler is not None:
+        state["scaler"] = scaler
     torch.save(state, path)
     logger.info("DL model saved → %s", path)
 
 
-def load_dl_model(path: str, device: str = "cpu") -> nn.Module:
-    """Load a saved DL model."""
+def load_dl_model(path: str, device: str = "cpu", return_state: bool = False):
+    """Load a saved DL model.
+
+    Set ``return_state=True`` to also return the raw checkpoint dict.
+    """
     ckpt = torch.load(path, map_location=device, weights_only=False)
     # reverse lookup in registry
     cls_name = ckpt["arch"]
@@ -289,5 +299,8 @@ def load_dl_model(path: str, device: str = "cpu") -> nn.Module:
         if cls.__name__ == cls_name:
             model = cls(ckpt["n_features"], ckpt["n_classes"])
             model.load_state_dict(ckpt["state_dict"])
-            return model.to(device)
+            model = model.to(device)
+            if return_state:
+                return model, ckpt
+            return model
     raise ValueError(f"Unknown arch class: {cls_name}")

@@ -21,6 +21,7 @@ from typing import Dict, List, Tuple, Optional
 import torch
 import torch.nn as nn
 from torch.utils.data import Dataset, DataLoader, TensorDataset
+from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
 from sklearn.metrics import (
     accuracy_score, precision_score, recall_score, f1_score,
@@ -44,6 +45,48 @@ logger = logging.getLogger(__name__)
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 
 
+def _sanitize_feature_matrix(X: np.ndarray) -> np.ndarray:
+    """Convert NaN/Inf values to robust column medians."""
+    X = np.asarray(X, dtype=float)
+    bad = ~np.isfinite(X)
+    if not bad.any():
+        return X
+
+    X = X.copy()
+    col_med = np.zeros(X.shape[1], dtype=float)
+    for j in range(X.shape[1]):
+        col = X[:, j]
+        fin = col[np.isfinite(col)]
+        col_med[j] = float(np.median(fin)) if len(fin) else 0.0
+    rr, cc = np.where(~np.isfinite(X))
+    X[rr, cc] = col_med[cc]
+    return X
+
+
+def _split_train_val(
+    X: np.ndarray,
+    y: np.ndarray,
+    val_ratio: float = 0.2,
+    seed: int = RANDOM_STATE,
+) -> Tuple[np.ndarray, np.ndarray, Optional[np.ndarray], Optional[np.ndarray]]:
+    """Split train/val while remaining robust on tiny or imbalanced sets."""
+    if len(X) < 10 or val_ratio <= 0:
+        return X, y, None, None
+
+    unique, counts = np.unique(y, return_counts=True)
+    stratify = y if len(unique) > 1 and counts.min() >= 2 else None
+    try:
+        X_tr, X_val, y_tr, y_val = train_test_split(
+            X, y, test_size=val_ratio, random_state=seed, stratify=stratify
+        )
+    except ValueError:
+        return X, y, None, None
+
+    if len(np.unique(y_tr)) < 2 or len(X_val) == 0:
+        return X, y, None, None
+    return X_tr, y_tr, X_val, y_val
+
+
 # ══════════════════════════════════════════════════════════════════════════════
 #  Feature extraction (all modalities)
 # ══════════════════════════════════════════════════════════════════════════════
@@ -60,7 +103,7 @@ def extract_subject_features(
     """
     signals = subject["signals"]
     sr_dict = subject["sampling_rates"]
-    binary = subject["binary_labels"]
+    labels_mapped = subject["binary_labels"]
     valid_mask = subject["valid_mask"]
 
     # lowercase keys for preprocessing / feature extraction
@@ -119,7 +162,7 @@ def extract_subject_features(
     for r in rows:
         i0 = int(r["t0"] * labels_sr)
         i1 = int(r["t1"] * labels_sr)
-        seg_lbl = binary[i0:i1]
+        seg_lbl = labels_mapped[i0:i1]
         seg_val = valid_mask[i0:i1]
         if seg_val.sum() / max(len(seg_val), 1) >= 0.8:
             vals, cnts = np.unique(seg_lbl[seg_val], return_counts=True)
@@ -131,6 +174,7 @@ def extract_subject_features(
     meta = {"window", "t0", "t1"}
     feat_names = [k for k in rows[0] if k not in meta]
     X = np.array([[r.get(f, np.nan) for f in feat_names] for r in rows])
+    X = _sanitize_feature_matrix(X)
 
     ok = y >= 0
     X, y = X[ok], y[ok]
@@ -147,11 +191,15 @@ def extract_subject_features(
 
 def _prep_tensors(X: np.ndarray, y: np.ndarray, scaler=None, fit=False):
     """Clean NaN, scale, return (X_tensor, y_tensor, scaler)."""
-    # Replace remaining NaN with column mean
-    col_mean = np.nanmean(X, axis=0)
-    col_mean = np.nan_to_num(col_mean, nan=0.0)
-    inds = np.where(np.isnan(X))
-    X[inds] = np.take(col_mean, inds[1])
+    X = np.asarray(X, dtype=float)
+    X = X.copy()
+    col_med = np.zeros(X.shape[1], dtype=float)
+    for j in range(X.shape[1]):
+        col = X[:, j]
+        fin = col[np.isfinite(col)]
+        col_med[j] = float(np.median(fin)) if len(fin) else 0.0
+    rr, cc = np.where(~np.isfinite(X))
+    X[rr, cc] = col_med[cc]
 
     if scaler is None:
         scaler = StandardScaler()
@@ -328,7 +376,9 @@ def evaluate_model(model: nn.Module, X: np.ndarray, y: np.ndarray,
         "f1": float(f1_score(y_true, y_pred,
                               average="weighted", zero_division=0)),
         "confusion_matrix": confusion_matrix(y_true, y_pred).tolist(),
-        "report": classification_report(y_true, y_pred, output_dict=True),
+        "report": classification_report(
+            y_true, y_pred, output_dict=True, zero_division=0
+        ),
     }
 
     # AUC
@@ -372,7 +422,8 @@ def train_dl_loso(data: Dict, *, arch: str = "cnn1d",
     """Leave-One-Subject-Out evaluation for one DL architecture."""
     sf, feat_names = _get_subject_data(data, window_sec, step_sec, device_mode)
     sids = sorted(sf)
-    if not sids:
+    if len(sids) < 2:
+        logger.error("LOSO requires at least 2 subjects.")
         return {}
     n_features = sf[sids[0]][0].shape[1]
     logger.info("LOSO %s  (%d subjects, %d features, %d classes)",
@@ -384,11 +435,12 @@ def train_dl_loso(data: Dict, *, arch: str = "cnn1d",
         X_tr = np.vstack([sf[s][0] for s in sids if s != test_sid])
         y_tr = np.concatenate([sf[s][1] for s in sids if s != test_sid])
 
-        # class weights from training set
-        cw = _compute_class_weights(y_tr)
+        # Build a validation split only from training subjects (no test leakage).
+        X_fit, y_fit, X_val, y_val = _split_train_val(X_tr, y_tr)
+        cw = _compute_class_weights(y_fit)
 
         model = build_dl_model(arch, n_features, n_classes, DL_DROPOUT)
-        info = train_model(model, X_tr, y_tr, X_te, y_te,
+        info = train_model(model, X_fit, y_fit, X_val, y_val,
                            class_weights=cw, **train_kw)
         metrics = evaluate_model(model, X_te, y_te, info["scaler"], n_classes)
         metrics["test_subject"] = test_sid
@@ -423,7 +475,8 @@ def train_dl_subject_independent(data: Dict, *, arch: str = "cnn1d",
     """Pool subjects, split by subject (80/20), train & evaluate."""
     sf, feat_names = _get_subject_data(data, window_sec, step_sec, device_mode)
     sids = sorted(sf)
-    if not sids:
+    if len(sids) < 2:
+        logger.error("Subject-independent training requires at least 2 subjects.")
         return {}
 
     rng = np.random.RandomState(RANDOM_STATE)
@@ -437,20 +490,22 @@ def train_dl_subject_independent(data: Dict, *, arch: str = "cnn1d",
     X_te = np.vstack([sf[s][0] for s in test_set])
     y_te = np.concatenate([sf[s][1] for s in test_set])
 
-    n_features = X_tr.shape[1]
-    cw = _compute_class_weights(y_tr)
+    X_fit, y_fit, X_val, y_val = _split_train_val(X_tr, y_tr)
+    n_features = X_fit.shape[1]
+    cw = _compute_class_weights(y_fit)
     logger.info("Subject-Independent %s  train=%s (%d) test=%s (%d)",
                 arch, train_set, len(X_tr), test_set, len(X_te))
 
     model = build_dl_model(arch, n_features, n_classes, DL_DROPOUT)
-    info = train_model(model, X_tr, y_tr, X_te, y_te,
+    info = train_model(model, X_fit, y_fit, X_val, y_val,
                        class_weights=cw, **train_kw)
     metrics = evaluate_model(model, X_te, y_te, info["scaler"], n_classes)
 
     # Save model
     tag = f"{arch}_independent_{'bin' if n_classes == 2 else '3cls'}"
     save_dl_model(model, str(MODELS_DIR / f"{tag}.pt"),
-                  meta={"train_subjects": train_set, "test_subjects": test_set})
+                  meta={"train_subjects": train_set, "test_subjects": test_set},
+                  scaler=info["scaler"])
     metrics.update({
         "arch": arch,
         "train_subjects": [int(s) for s in train_set],
@@ -484,9 +539,10 @@ def train_dl_subject_dependent(data: Dict, *, arch: str = "cnn1d",
         X_tr, y_tr = X[idx[:split]], y[idx[:split]]
         X_te, y_te = X[idx[split:]], y[idx[split:]]
 
-        cw = _compute_class_weights(y_tr)
+        X_fit, y_fit, X_val, y_val = _split_train_val(X_tr, y_tr)
+        cw = _compute_class_weights(y_fit)
         model = build_dl_model(arch, n_features, n_classes, DL_DROPOUT)
-        info = train_model(model, X_tr, y_tr, X_te, y_te,
+        info = train_model(model, X_fit, y_fit, X_val, y_val,
                            class_weights=cw, **train_kw)
         metrics = evaluate_model(model, X_te, y_te, info["scaler"], n_classes)
         results[f"S{sid}"] = {
@@ -506,11 +562,12 @@ def compare_all(data: Dict, *, n_classes: int = 2,
                 window_sec: int = 60, step_sec: int = 30,
                 device_mode: str = "both") -> Dict:
     """Run LOSO for all ML + DL models and build comparison table."""
-    from models import StressModel  # local import to avoid circular
+    from ml_models import StressModel  # local import to avoid circular
 
     sf, feat_names = _get_subject_data(data, window_sec, step_sec, device_mode)
     sids = sorted(sf)
-    if not sids:
+    if len(sids) < 2:
+        logger.error("Comparison requires at least 2 subjects.")
         return {}
 
     comparison: Dict = {"ml": {}, "dl": {}}

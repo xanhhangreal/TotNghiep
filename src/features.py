@@ -494,16 +494,20 @@ def _safe_filter(signal: np.ndarray, sr: int,
             if lo >= hi:
                 return None
             wn = [lo / nyq, hi / nyq]
-            b, a = scipy_signal.butter(order, wn, btype="band")
+            sos = scipy_signal.butter(order, wn, btype="band", output="sos")
         elif ftype == "lowpass":
-            b, a = scipy_signal.butter(order, min(cutoff, nyq * 0.95) / nyq, btype="low")
+            sos = scipy_signal.butter(
+                order, min(cutoff, nyq * 0.95) / nyq, btype="low", output="sos"
+            )
         elif ftype == "highpass":
             if cutoff >= nyq:
                 return None
-            b, a = scipy_signal.butter(order, cutoff / nyq, btype="high")
+            sos = scipy_signal.butter(order, cutoff / nyq, btype="high",
+                                      output="sos")
         else:
             return None
-        out[valid] = scipy_signal.filtfilt(b, a, out[valid])
+        out[valid] = scipy_signal.sosfiltfilt(sos, out[valid])
+        out[~np.isfinite(out)] = np.nan
         return out
     except Exception:
         return None

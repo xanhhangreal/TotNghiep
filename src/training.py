@@ -20,9 +20,27 @@ from config import (
 from wesad_loader import load_wesad
 from preprocessing import preprocess_wesad_signal
 from features import FeatureExtractor
-from models import StressModel
+from ml_models import StressModel
 
 logger = logging.getLogger(__name__)
+
+
+def _sanitize_feature_matrix(X: np.ndarray) -> np.ndarray:
+    """Convert non-finite values to robust column medians."""
+    X = np.asarray(X, dtype=float)
+    bad = ~np.isfinite(X)
+    if not bad.any():
+        return X
+
+    X = X.copy()
+    col_med = np.zeros(X.shape[1], dtype=float)
+    for j in range(X.shape[1]):
+        col = X[:, j]
+        fin = col[np.isfinite(col)]
+        col_med[j] = float(np.median(fin)) if len(fin) else 0.0
+    rr, cc = np.where(~np.isfinite(X))
+    X[rr, cc] = col_med[cc]
+    return X
 
 
 # ── feature extraction per subject ────────────────────────────────────────────
@@ -37,7 +55,7 @@ def extract_subject_features(
     """
     signals = subject["signals"]
     sr_dict = subject["sampling_rates"]
-    binary = subject["binary_labels"]
+    labels_mapped = subject["binary_labels"]
     valid_mask = subject["valid_mask"]
 
     # lowercase keys for preprocessing / feature extraction
@@ -79,7 +97,7 @@ def extract_subject_features(
     for r in rows:
         i0 = int(r["t0"] * labels_sr)
         i1 = int(r["t1"] * labels_sr)
-        seg_lbl = binary[i0:i1]
+        seg_lbl = labels_mapped[i0:i1]
         seg_val = valid_mask[i0:i1]
         if seg_val.sum() / max(len(seg_val), 1) >= 0.8:
             vals, cnts = np.unique(seg_lbl[seg_val], return_counts=True)
@@ -91,6 +109,7 @@ def extract_subject_features(
     meta = {"window", "t0", "t1"}
     feat_names = [k for k in rows[0] if k not in meta]
     X = np.array([[r.get(f, np.nan) for f in feat_names] for r in rows])
+    X = _sanitize_feature_matrix(X)
 
     ok = y >= 0
     X, y = X[ok], y[ok]
@@ -151,6 +170,9 @@ def train_subject_independent(data: Dict, *, window_sec=60, step_sec=30,
 
     # subject-wise split
     uniq = np.unique(sids)
+    if len(uniq) < 2:
+        logger.error("Subject-independent requires at least 2 subjects.")
+        return {"error": "need_at_least_2_subjects", "models": {}}, feat_names or []
     rng = np.random.RandomState(RANDOM_STATE)
     rng.shuffle(uniq)
     n_test = max(1, int(len(uniq) * test_ratio))
@@ -190,6 +212,9 @@ def train_loso(data: Dict, *, window_sec=60, step_sec=30) -> Dict:
             sf[subj["subject_id"]] = (X, y)
 
     sids = sorted(sf)
+    if len(sids) < 2:
+        logger.error("LOSO requires at least 2 subjects.")
+        return {}
     logger.info("LOSO with %d subjects: %s", len(sids), sids)
     results = {n: [] for n in DEFAULT_MODELS}
 
@@ -233,8 +258,17 @@ def _save(results: Dict, tag: str) -> Path:
     ts = datetime.now().strftime("%Y%m%d_%H%M%S")
     p = RESULTS_DIR / f"{tag}_{ts}.json"
     p.parent.mkdir(parents=True, exist_ok=True)
+    def _default(o):
+        if isinstance(o, (np.integer,)):
+            return int(o)
+        if isinstance(o, (np.floating,)):
+            return float(o)
+        if isinstance(o, np.ndarray):
+            return o.tolist()
+        return str(o)
+
     with open(p, "w") as f:
-        json.dump(results, f, indent=2, default=str)
+        json.dump(results, f, indent=2, default=_default)
     logger.info("Results → %s", p)
     return p
 

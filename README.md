@@ -37,7 +37,7 @@ EDA, BVP, TEMP, ACC) và **ngực** (RespiBAN: ECG, EMG, EDA, Temp, Resp, ACC).
 │   ├── wesad_loader.py       # Đọc dữ liệu WESAD (pickle), căn chỉnh tín hiệu
 │   ├── preprocessing.py      # Tiền xử lý tín hiệu (lọc, resample, chuẩn hóa)
 │   ├── features.py           # Trích xuất ~70 đặc trưng từ tất cả phương thức
-│   ├── models.py             # Bọc mô hình sklearn (RF, LR, SVM, DT)
+│   ├── ml_models.py          # Bọc mô hình sklearn (RF, LR, SVM, DT)
 │   ├── dl_models.py          # Kiến trúc PyTorch (CNN-1D, UNet-1D, ResNet-1D)
 │   ├── training.py           # Pipeline huấn luyện ML (CLI)
 │   ├── dl_training.py        # Pipeline huấn luyện DL (CLI)
@@ -161,7 +161,7 @@ python src/training.py --approach loso --device both --n-classes 3
 
 ```bash
 # Huấn luyện ResNet-1D với LOSO, binary
-python src/dl_training.py --arch resnet1d --approach loso --classes 2
+python src/dl_training.py --arch resnet1d --approach loso --classes binary
 
 # Huấn luyện tất cả kiến trúc DL, cả binary và 3-class
 python src/dl_training.py --arch all --classes both --approach loso
@@ -174,7 +174,7 @@ python src/dl_training.py --arch all --approach compare
 |---------|--------|----------|
 | `--arch` | `cnn1d`, `unet1d`, `resnet1d`, `all` | `all` |
 | `--approach` | `loso`, `subject_independent`, `subject_dependent`, `compare`, `all` | `loso` |
-| `--classes` | `2`, `3`, `both` | `2` |
+| `--classes` | `binary`, `3class`, `both` | `binary` |
 | `--epochs` | Số epoch tối đa | `100` |
 | `--batch-size` | Batch size | `64` |
 | `--lr` | Learning rate | `0.001` |

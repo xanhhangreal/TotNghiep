@@ -78,18 +78,21 @@ class SignalPreprocessor:
                 if lo >= hi:
                     return out
                 wn = [lo / nyq, hi / nyq]
-                b, a = scipy_signal.butter(order, wn, btype="band")
+                sos = scipy_signal.butter(order, wn, btype="band", output="sos")
             elif filter_type == "lowpass":
                 wn = min(cutoff, nyq * 0.95) / nyq
-                b, a = scipy_signal.butter(order, wn, btype="low")
+                sos = scipy_signal.butter(order, wn, btype="low", output="sos")
             elif filter_type == "highpass":
                 if cutoff >= nyq:
                     return out
-                b, a = scipy_signal.butter(order, cutoff / nyq, btype="high")
+                sos = scipy_signal.butter(order, cutoff / nyq, btype="high",
+                                          output="sos")
             else:
                 raise ValueError(f"Unknown filter type: {filter_type}")
 
-            out[valid] = scipy_signal.filtfilt(b, a, out[valid])
+            out[valid] = scipy_signal.sosfiltfilt(sos, out[valid])
+            # Guard downstream code from occasional numeric explosions.
+            out[~np.isfinite(out)] = np.nan
         except Exception as e:
             logger.warning("Filter failed (%s), returning original signal", e)
         return out
