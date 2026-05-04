@@ -412,8 +412,8 @@ class FeatureExtractor:
     @staticmethod
     def extract_windows(signals: Dict[str, np.ndarray],
                         sampling_rates: Dict[str, int],
-                        window_sec: int = 60,
-                        step_sec: int = 30) -> List[Dict]:
+                        window_sec: float = 60,
+                        step_sec: float = 30) -> List[Dict]:
         """Slide a window over all signals and extract features per window.
 
         Automatically dispatches to the correct feature extractor based on

@@ -4,7 +4,8 @@ from typing import Dict, Optional
 
 import joblib
 import numpy as np
-from sklearn.ensemble import RandomForestClassifier
+from sklearn.ensemble import RandomForestClassifier, AdaBoostClassifier
+from sklearn.discriminant_analysis import LinearDiscriminantAnalysis
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import (
     accuracy_score,
@@ -19,6 +20,7 @@ from sklearn.metrics import (
 from sklearn.model_selection import cross_validate as sklearn_cv
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import StandardScaler
+from sklearn.neighbors import KNeighborsClassifier
 from sklearn.svm import SVC
 from sklearn.tree import DecisionTreeClassifier
 import logging
@@ -30,6 +32,9 @@ _CONSTRUCTORS = {
     "logistic_regression": LogisticRegression,
     "svm": lambda **kw: SVC(probability=True, **kw),
     "decision_tree": DecisionTreeClassifier,
+    "adaboost": AdaBoostClassifier,
+    "lda": LinearDiscriminantAnalysis,
+    "knn": KNeighborsClassifier,
 }
 
 

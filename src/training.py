@@ -4,6 +4,7 @@ Usage (from project root):
     py -u src/training.py --approach all
     py -u src/training.py --approach loso --subjects 2 3 4
     py -u src/training.py --approach loso --device both --n-classes 3
+    py -u src/training.py --approach loso --device both --n-classes 2 --paper-protocol
 """
 import argparse
 import json
@@ -46,7 +47,7 @@ def _sanitize_feature_matrix(X: np.ndarray) -> np.ndarray:
 # ── feature extraction per subject ────────────────────────────────────────────
 
 def extract_subject_features(
-    subject: Dict, window_sec: int = 60, step_sec: int = 30,
+    subject: Dict, window_sec: float = 60, step_sec: float = 30,
 ) -> Tuple[np.ndarray, np.ndarray, List[str]]:
     """Preprocess signals → sliding-window features + majority-vote labels.
 
@@ -298,8 +299,10 @@ def main():
     ap.add_argument("--approach", default="subject_dependent",
                     choices=["subject_dependent", "subject_independent", "loso", "all"])
     ap.add_argument("--subjects", type=int, nargs="*", default=None)
-    ap.add_argument("--window", type=int, default=WINDOW_SIZE)
-    ap.add_argument("--step", type=int, default=WINDOW_STEP)
+    ap.add_argument("--window", type=float, default=WINDOW_SIZE)
+    ap.add_argument("--step", type=float, default=WINDOW_STEP)
+    ap.add_argument("--paper-protocol", action="store_true",
+                    help="Use WESAD paper setup: 60s window, 0.25s shift")
     ap.add_argument("--device", default="wrist",
                     choices=["wrist", "chest", "both"],
                     help="Sensor device(s) to use")
@@ -321,7 +324,11 @@ def main():
 
     approaches = (["subject_dependent", "subject_independent", "loso"]
                   if args.approach == "all" else [args.approach])
-    w, s = args.window, args.step
+    if args.paper_protocol:
+        w, s = 60.0, 0.25
+        logger.info("Using paper protocol: window=%.2fs, step=%.2fs", w, s)
+    else:
+        w, s = args.window, args.step
 
     for approach in approaches:
         logger.info("\n%s  %s  %s", "#" * 20, approach, "#" * 20)

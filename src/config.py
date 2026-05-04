@@ -17,8 +17,10 @@ WESAD_LABELS = {
     0: "not defined", 1: "baseline", 2: "stress",
     3: "amusement", 4: "meditation",
 }
-WESAD_BINARY_MAP = {1: 0, 2: 1}       # baseline → relaxed(0), stress → stressed(1)
-WESAD_KEEP_LABELS = [1, 2]
+# Paper-compatible binary task:
+#   non-stress = baseline + amusement, stress = stress
+WESAD_BINARY_MAP = {1: 0, 2: 1, 3: 0}
+WESAD_KEEP_LABELS = [1, 2, 3]
 
 WESAD_3CLASS_MAP = {1: 0, 2: 1, 3: 2}  # baseline→0, stress→1, amusement→2
 WESAD_KEEP_LABELS_3CLASS = [1, 2, 3]
@@ -41,7 +43,7 @@ OVERLAP = 0.5
 WINDOW_STEP = int(WINDOW_SIZE * (1 - OVERLAP))
 
 # ── Classification ────────────────────────────────────────────────────────────
-STRESS_LABELS = {0: "Relaxed", 1: "Stressed"}
+STRESS_LABELS = {0: "Non-stress", 1: "Stress"}
 STRESS_LABELS_3CLASS = {0: "Baseline", 1: "Stress", 2: "Amusement"}
 
 DEFAULT_MODELS = {
@@ -57,6 +59,14 @@ DEFAULT_MODELS = {
     },
     "decision_tree": {
         "max_depth": 10, "min_samples_split": 5, "random_state": 42,
+    },
+    # Paper-aligned baselines from WESAD benchmark
+    "adaboost": {
+        "n_estimators": 100, "random_state": 42,
+    },
+    "lda": {},
+    "knn": {
+        "n_neighbors": 9,
     },
 }
 

@@ -8,6 +8,7 @@ Usage (from project root):
     py -u src/dl_training.py --arch all --classes binary --approach loso
     py -u src/dl_training.py --arch cnn1d --classes both --approach all
     py -u src/dl_training.py --arch resnet1d --device both --approach loso
+    py -u src/dl_training.py --arch all --classes both --approach loso --paper-protocol
 """
 import argparse
 import json
@@ -93,8 +94,8 @@ def _split_train_val(
 
 def extract_subject_features(
     subject: Dict,
-    window_sec: int = 60,
-    step_sec: int = 30,
+    window_sec: float = 60,
+    step_sec: float = 30,
     device_mode: str = "both",
 ) -> Tuple[np.ndarray, np.ndarray, List[str]]:
     """Preprocess signals → sliding-window features + majority-vote labels.
@@ -416,8 +417,8 @@ def _get_subject_data(data: Dict, window_sec: int, step_sec: int,
 # ── LOSO ──────────────────────────────────────────────────────────────────────
 
 def train_dl_loso(data: Dict, *, arch: str = "cnn1d",
-                  n_classes: int = 2, window_sec: int = 60,
-                  step_sec: int = 30, device_mode: str = "both",
+                  n_classes: int = 2, window_sec: float = 60,
+                  step_sec: float = 30, device_mode: str = "both",
                   **train_kw) -> Dict:
     """Leave-One-Subject-Out evaluation for one DL architecture."""
     sf, feat_names = _get_subject_data(data, window_sec, step_sec, device_mode)
@@ -468,7 +469,7 @@ def train_dl_loso(data: Dict, *, arch: str = "cnn1d",
 
 def train_dl_subject_independent(data: Dict, *, arch: str = "cnn1d",
                                   n_classes: int = 2,
-                                  window_sec: int = 60, step_sec: int = 30,
+                                  window_sec: float = 60, step_sec: float = 30,
                                   device_mode: str = "both",
                                   test_ratio: float = 0.2,
                                   **train_kw) -> Dict:
@@ -518,7 +519,7 @@ def train_dl_subject_independent(data: Dict, *, arch: str = "cnn1d",
 
 def train_dl_subject_dependent(data: Dict, *, arch: str = "cnn1d",
                                 n_classes: int = 2,
-                                window_sec: int = 60, step_sec: int = 30,
+                                window_sec: float = 60, step_sec: float = 30,
                                 device_mode: str = "both",
                                 **train_kw) -> Dict:
     """Per-subject 80/20 split training & evaluation."""
@@ -559,7 +560,7 @@ def train_dl_subject_dependent(data: Dict, *, arch: str = "cnn1d",
 # ══════════════════════════════════════════════════════════════════════════════
 
 def compare_all(data: Dict, *, n_classes: int = 2,
-                window_sec: int = 60, step_sec: int = 30,
+                window_sec: float = 60, step_sec: float = 30,
                 device_mode: str = "both") -> Dict:
     """Run LOSO for all ML + DL models and build comparison table."""
     from ml_models import StressModel  # local import to avoid circular
@@ -675,13 +676,17 @@ def main():
                     choices=["subject_dependent", "subject_independent",
                              "loso", "compare", "all"])
     ap.add_argument("--classes", default="binary",
-                    choices=["binary", "3class", "both"])
+                    choices=["binary", "3class", "both"],
+                    help=("binary = stress vs non-stress (baseline+amusement), "
+                          "3class = baseline/stress/amusement"))
     ap.add_argument("--device", default="both",
                     choices=["wrist", "chest", "both"],
                     help="Sensor device(s) to use")
     ap.add_argument("--subjects", type=int, nargs="*", default=None)
-    ap.add_argument("--window", type=int, default=WINDOW_SIZE)
-    ap.add_argument("--step", type=int, default=WINDOW_STEP)
+    ap.add_argument("--window", type=float, default=WINDOW_SIZE)
+    ap.add_argument("--step", type=float, default=WINDOW_STEP)
+    ap.add_argument("--paper-protocol", action="store_true",
+                    help="Use WESAD paper setup: 60s window, 0.25s shift")
     ap.add_argument("--epochs", type=int, default=DL_EPOCHS)
     ap.add_argument("--batch-size", type=int, default=DL_BATCH_SIZE)
     ap.add_argument("--lr", type=float, default=DL_LEARNING_RATE)
@@ -703,6 +708,13 @@ def main():
     train_kw = dict(epochs=args.epochs, batch_size=args.batch_size,
                     lr=args.lr)
 
+    if args.paper_protocol:
+        window_sec, step_sec = 60.0, 0.25
+        logger.info("Using paper protocol: window=%.2fs, step=%.2fs",
+                    window_sec, step_sec)
+    else:
+        window_sec, step_sec = args.window, args.step
+
     for n_cls in class_configs:
         logger.info("\n%s  %d-class  %s", "#" * 20, n_cls, "#" * 20)
         data = load_wesad(subject_ids=args.subjects,
@@ -720,8 +732,8 @@ def main():
         for approach in approaches:
             if approach == "compare":
                 comp = compare_all(data, n_classes=n_cls,
-                                   window_sec=args.window,
-                                   step_sec=args.step,
+                                   window_sec=window_sec,
+                                   step_sec=step_sec,
                                    device_mode=args.device)
                 _print_comparison(comp)
                 _save(comp, f"compare_{n_cls}cls")
@@ -729,8 +741,8 @@ def main():
             elif approach == "loso":
                 for arch in archs:
                     r = train_dl_loso(data, arch=arch, n_classes=n_cls,
-                                     window_sec=args.window,
-                                     step_sec=args.step,
+                                     window_sec=window_sec,
+                                     step_sec=step_sec,
                                      device_mode=args.device,
                                      **train_kw)
                     if r:
@@ -741,7 +753,7 @@ def main():
                 for arch in archs:
                     r = train_dl_subject_independent(
                         data, arch=arch, n_classes=n_cls,
-                        window_sec=args.window, step_sec=args.step,
+                        window_sec=window_sec, step_sec=step_sec,
                         device_mode=args.device, **train_kw)
                     if r:
                         _save(r, f"independent_{arch}_{n_cls}cls")
@@ -750,7 +762,7 @@ def main():
                 for arch in archs:
                     r = train_dl_subject_dependent(
                         data, arch=arch, n_classes=n_cls,
-                        window_sec=args.window, step_sec=args.step,
+                        window_sec=window_sec, step_sec=step_sec,
                         device_mode=args.device, **train_kw)
                     if r:
                         _save(r, f"dependent_{arch}_{n_cls}cls")

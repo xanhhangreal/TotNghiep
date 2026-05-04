@@ -8,6 +8,10 @@ WESAD pickle structure:
     data['label']            →  ndarray at 700 Hz
 
 Labels: 0=undefined, 1=baseline, 2=stress, 3=amusement, 4=meditation
+
+Binary mapping used in this project follows the WESAD paper:
+    non-stress = baseline + amusement
+    stress     = stress
 """
 import pickle
 import numpy as np
@@ -91,7 +95,7 @@ def downsample_labels(labels: np.ndarray, label_sr: int = 700,
 
 
 def to_binary(labels: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
-    """Map WESAD labels → binary (0=relaxed, 1=stressed).
+    """Map WESAD labels → binary (0=non-stress, 1=stress).
 
     Returns (binary_labels, valid_mask).  Invalid samples get label -1.
     """
@@ -136,7 +140,7 @@ def load_wesad(subject_ids: List[int] = None, wesad_dir: str = None,
 
     Args:
         device:    "wrist", "chest", or "both" (all modalities).
-        n_classes: 2 for binary (relaxed/stressed), 3 for 3-class
+        n_classes: 2 for binary (stress vs non-stress), 3 for 3-class
                    (baseline/stress/amusement).
 
     Returns ``{'subjects': [<per-subject dict>, ...]}``.
