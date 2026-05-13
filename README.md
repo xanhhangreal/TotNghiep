@@ -7,8 +7,8 @@ Amusement) sử dụng tín hiệu sinh lý đa phương thức từ **cổ tay*
 EDA, BVP, TEMP, ACC) và **ngực** (RespiBAN: ECG, EMG, EDA, Temp, Resp, ACC).
 
 Đánh giá trên tập dữ liệu **WESAD** (Schmidt et al., 2018) với **mô hình học máy**
-(Random Forest, Logistic Regression, SVM, Decision Tree) và **mô hình học sâu**
-(CNN-1D, UNet-1D, ResNet-1D).
+(Random Forest, Logistic Regression, SVM, Decision Tree, AdaBoost, LDA, KNN)
+và **mô hình học sâu** (CNN-1D, UNet-1D, ResNet-1D).
 
 ---
 
@@ -19,9 +19,12 @@ EDA, BVP, TEMP, ACC) và **ngực** (RespiBAN: ECG, EMG, EDA, Temp, Resp, ACC).
 3. [Cài đặt môi trường](#cài-đặt-môi-trường)
 4. [Chuẩn bị dữ liệu](#chuẩn-bị-dữ-liệu)
 5. [Chạy huấn luyện mô hình](#chạy-huấn-luyện-mô-hình)
-6. [Chạy demo (Streamlit)](#chạy-demo-streamlit)
-7. [Triển khai (Deploy)](#triển-khai-deploy)
-8. [Tài liệu tham khảo](#tài-liệu-tham-khảo)
+6. [Ghi chú phương pháp](#ghi-chú-phương-pháp)
+7. [Kết quả thực nghiệm (LOSO)](#kết-quả-thực-nghiệm-loso)
+8. [Chạy demo (Streamlit)](#chạy-demo-streamlit)
+9. [Triển khai (Deploy)](#triển-khai-deploy)
+10. [Hạn chế](#hạn-chế)
+11. [Tài liệu tham khảo](#tài-liệu-tham-khảo)
 
 ---
 
@@ -37,10 +40,11 @@ EDA, BVP, TEMP, ACC) và **ngực** (RespiBAN: ECG, EMG, EDA, Temp, Resp, ACC).
 │   ├── wesad_loader.py       # Đọc dữ liệu WESAD (pickle), căn chỉnh tín hiệu
 │   ├── preprocessing.py      # Tiền xử lý tín hiệu (lọc, resample, chuẩn hóa)
 │   ├── features.py           # Trích xuất ~70 đặc trưng từ tất cả phương thức
-│   ├── ml_models.py          # Bọc mô hình sklearn (RF, LR, SVM, DT)
+│   ├── ml_models.py          # Bọc mô hình sklearn (RF, LR, SVM, DT, AdaBoost, LDA, KNN)
 │   ├── dl_models.py          # Kiến trúc PyTorch (CNN-1D, UNet-1D, ResNet-1D)
 │   ├── training.py           # Pipeline huấn luyện ML (CLI)
 │   ├── dl_training.py        # Pipeline huấn luyện DL (CLI)
+│   ├── build_results_summary.py  # Tổng hợp bảng/biểu đồ benchmark từ JSON
 │   ├── shap_analysis.py      # Phân tích SHAP
 │   ├── app.py                # Ứng dụng demo Streamlit
 │   ├── setup_wesad.py        # Script tải & xác minh WESAD
@@ -55,6 +59,7 @@ EDA, BVP, TEMP, ACC) và **ngực** (RespiBAN: ECG, EMG, EDA, Temp, Resp, ACC).
 │
 ├── models/                   # Mô hình đã lưu (gitignored)
 ├── results/                  # Kết quả huấn luyện JSON (gitignored)
+├── results_summary/          # Bảng tổng hợp + hình minh hoạ (tracked)
 └── references/               # Bài báo, tài liệu tham khảo (PDF)
 ```
 
@@ -181,6 +186,86 @@ python src/dl_training.py --arch all --approach compare
 
 Kết quả được lưu tại `results/` dưới dạng JSON.
 
+### Tổng hợp bảng + biểu đồ benchmark
+
+```bash
+# Windows
+.venv\Scripts\python.exe src/build_results_summary.py
+
+# Linux / macOS
+python src/build_results_summary.py
+```
+
+Lệnh trên sẽ sinh các file tóm tắt trong `results_summary/`:
+
+- `final_benchmark_summary.csv`
+- `final_benchmark_summary.md`
+- `ml_binary_loso_summary.csv`, `ml_3class_loso_summary.csv`
+- `dl_binary_loso_summary.csv`, `dl_3class_loso_summary.csv`
+- `figures/*.png` (model comparison, confusion matrix, SHAP)
+
+---
+
+## Ghi chú phương pháp
+
+- Pipeline hiện tại là **feature-based**: dữ liệu thô được tiền xử lý, chia cửa sổ, rồi trích xuất vector đặc trưng thống kê/sinh lý.
+- **ML models** (RF/LR/SVM/DT/AdaBoost/LDA/KNN) học trực tiếp trên vector đặc trưng này.
+- **DL models** (CNN-1D/UNet-1D/ResNet-1D) cũng học trên vector đặc trưng (không học trực tiếp waveform thô).
+- Đây là lựa chọn có chủ đích để so sánh công bằng ML vs DL trên cùng đầu vào đặc trưng.
+- Baseline raw-signal DL chưa được đưa vào nhánh chính ở phiên bản hiện tại.
+
+---
+
+## Kết quả thực nghiệm (LOSO)
+
+Thiết lập: WESAD 15 subjects (S2-S17, trừ S1/S12), `device=both`, `window=60s`, `step=30s`.
+
+### Binary (2-class): Non-Stress vs Stress
+
+| Family | Model | Accuracy (mean +/- std) | F1 (mean +/- std) |
+|---|---|---:|---:|
+| ML | AdaBoost | 0.9710 +/- 0.0485 | 0.9715 +/- 0.0474 |
+| ML | RandomForest | 0.9691 +/- 0.0491 | 0.9695 +/- 0.0481 |
+| ML | SVM | 0.9663 +/- 0.0560 | 0.9669 +/- 0.0546 |
+| ML | LogisticRegression | 0.9662 +/- 0.0575 | 0.9647 +/- 0.0620 |
+| DL | UNet1D | 0.9576 +/- 0.0512 | 0.9578 +/- 0.0507 |
+| ML | KNN | 0.9548 +/- 0.0607 | 0.9545 +/- 0.0613 |
+| ML | LDA | 0.9512 +/- 0.0690 | 0.9497 +/- 0.0724 |
+| DL | ResNet1D | 0.9292 +/- 0.0924 | 0.9295 +/- 0.0906 |
+| DL | CNN1D | 0.9258 +/- 0.0872 | 0.9267 +/- 0.0863 |
+| ML | DecisionTree | 0.8650 +/- 0.1720 | 0.8612 +/- 0.1831 |
+
+### Tri-class (3-class): Baseline vs Stress vs Amusement
+
+| Family | Model | Accuracy (mean +/- std) | F1 (mean +/- std) |
+|---|---|---:|---:|
+| ML | AdaBoost | 0.9247 +/- 0.0648 | 0.9211 +/- 0.0674 |
+| ML | RandomForest | 0.9205 +/- 0.0688 | 0.9088 +/- 0.0821 |
+| DL | UNet1D | 0.8656 +/- 0.0862 | 0.8574 +/- 0.0877 |
+| ML | SVM | 0.8753 +/- 0.0848 | 0.8540 +/- 0.1023 |
+| DL | CNN1D | 0.8503 +/- 0.1226 | 0.8473 +/- 0.1218 |
+| ML | LDA | 0.8586 +/- 0.1210 | 0.8422 +/- 0.1270 |
+| ML | DecisionTree | 0.8343 +/- 0.1280 | 0.8222 +/- 0.1245 |
+| ML | KNN | 0.8373 +/- 0.1055 | 0.8126 +/- 0.1109 |
+| ML | LogisticRegression | 0.8245 +/- 0.1256 | 0.8006 +/- 0.1305 |
+| DL | ResNet1D | 0.7961 +/- 0.1465 | 0.7821 +/- 0.1472 |
+
+Nguồn số liệu: `results_summary/final_benchmark_summary.csv` (được build từ các file JSON mới nhất trong `results/`).
+
+### Biểu đồ so sánh mô hình
+
+![Binary model comparison](results_summary/figures/model_comparison_binary.png)
+![3-class model comparison](results_summary/figures/model_comparison_3class.png)
+
+### Confusion matrix (LOSO aggregate)
+
+![Binary confusion matrix](results_summary/figures/confusion_matrix_binary.png)
+![Tri-class confusion matrix](results_summary/figures/confusion_matrix_3class.png)
+
+### SHAP top features (Random Forest, binary)
+
+![SHAP top features](results_summary/figures/shap_top_features.png)
+
 ---
 
 ## Chạy demo (Streamlit)
@@ -233,6 +318,15 @@ docker run -p 8501:8501 stress-detection
 2. Truy cập [share.streamlit.io](https://share.streamlit.io)
 3. Kết nối repository, chọn `src/app.py` làm main file
 4. Deploy
+
+---
+
+## Hạn chế
+
+- Kết quả hiện tập trung vào feature-based pipeline; chưa có baseline DL học trực tiếp trên raw signals.
+- Chưa có ablation đầy đủ theo từng nguồn cảm biến (`wrist`, `chest`, `both`) trong README.
+- Chưa công bố tập test ngoài WESAD, nên khả năng tổng quát liên miền cần được kiểm chứng thêm.
+- Một số model lưu trước đây có thể phát sinh cảnh báo khác phiên bản `scikit-learn` khi load lại.
 
 ---
 

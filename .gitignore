@@ -9,6 +9,7 @@ data/public/**/*.hdf5
 data/own/**/*
 models/**/*.pkl
 models/**/*.pth
+models/**/*.pt
 models/**/*.joblib
 results/**/*.json
 results/**/*

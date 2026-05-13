@@ -1,11 +1,11 @@
 # Đánh Giá Repository `xanhhangreal/TotNghiep`
 
 **Repository:** <https://github.com/xanhhangreal/TotNghiep>  
-**Ngày kiểm tra:** 2026-05-12  
+**Ngày kiểm tra:** 2026-05-13  
 **Chủ đề:** Phát hiện trạng thái căng thẳng từ tín hiệu sinh lý đa phương thức bằng học máy và học sâu  
-**Đánh giá tổng quan:** **7/10**
+**Đánh giá tổng quan:** **8.2/10**
 
-> Nhận xét ngắn: Repo có nền tảng khá tốt cho đồ án tốt nghiệp/OJT, có pipeline tương đối đầy đủ từ dữ liệu, tiền xử lý, huấn luyện, giải thích mô hình đến demo. Tuy nhiên, cần cải thiện tính tái lập, bổ sung kết quả thực nghiệm có thể kiểm chứng và tăng độ hoàn thiện khi trình bày.
+> Nhận xét ngắn: Repo đã được cải thiện rõ rệt ở phần kết quả thực nghiệm có thể kiểm chứng (bảng + hình + file tổng hợp tracked), tài liệu README và giấy phép. Các việc còn lại chủ yếu là hoàn thiện mức sản phẩm GitHub (About/Topics/Release) và tăng chiều sâu nghiên cứu (raw-signal DL, ablation, error analysis).
 
 ---
 
@@ -216,23 +216,28 @@ Repo có thư mục `references/` chứa tài liệu PDF. Việc này không sai
 ### Mức 1 — Rất Nên Làm Trước Khi Nộp
 
 - [x] Giữ `README_PROJECT.md` ở trạng thái deprecated và trỏ về `README.md`.
-- [ ] Thêm bảng kết quả thực nghiệm vào README.
-- [ ] Thêm ảnh confusion matrix.
-- [ ] Thêm biểu đồ so sánh mô hình.
-- [ ] Thêm hình SHAP top features.
+- [x] Thêm bảng kết quả thực nghiệm vào README.
+- [x] Thêm ảnh confusion matrix.
+- [x] Thêm biểu đồ so sánh mô hình.
+- [x] Thêm hình SHAP top features.
 - [x] Đã ghi phiên bản Python tối thiểu trong README (`Python 3.10+`).
-- [ ] Thêm `LICENSE`.
+- [x] Thêm `LICENSE`.
 - [ ] Thêm mô tả ngắn ở phần GitHub About.
 - [ ] Thêm topics cho repository.
 
+Ghi chú hiện trạng:
+- Đã có `results_summary/` với CSV + markdown + figures được track trong git.
+- Đã có script `src/build_results_summary.py` để build tự động từ các file JSON mới nhất trong `results/`.
+- Hai mục `GitHub About` và `topics` chưa cập nhật được tự động do máy hiện chưa đăng nhập `gh auth`.
+
 ### Mức 2 — Nên Làm Nếu Còn Thời Gian
 
-- [ ] Đưa `tests/` vào commit chính thức và bổ sung test cơ bản.
-- [ ] Test các hàm chính:
-  - loader dữ liệu.
-  - tiền xử lý.
-  - trích xuất đặc trưng.
-  - chia tập train/test.
+- [x] Đưa `tests/` vào commit chính thức và bổ sung test cơ bản.
+- [x] Test các hàm chính (mức cơ bản):
+  - [x] loader dữ liệu.
+  - [ ] tiền xử lý.
+  - [ ] trích xuất đặc trưng.
+  - [x] chia tập train/test.
 - [ ] Thêm `Makefile` hoặc script `run_all.sh`.
 - [ ] Pin phiên bản thư viện trong `requirements.txt`.
 - [ ] Thêm GitHub Actions để kiểm tra import/lint đơn giản.
@@ -244,9 +249,9 @@ Repo có thư mục `references/` chứa tài liệu PDF. Việc này không sai
   - wrist only.
   - chest only.
   - both.
-- [ ] So sánh 2-class và 3-class rõ ràng.
+- [x] So sánh 2-class và 3-class rõ ràng.
 - [ ] Phân tích lỗi theo từng subject.
-- [ ] Thêm phần limitations trong README hoặc báo cáo.
+- [x] Thêm phần limitations trong README hoặc báo cáo.
 
 ---
 
@@ -294,26 +299,26 @@ README nên có cấu trúc như sau:
 | Tiêu chí | Điểm | Nhận xét |
 |---|---:|---|
 | Ý tưởng đề tài | 8.5/10 | Chủ đề tốt, có dataset chuẩn, có tính ứng dụng |
-| README/tài liệu | 7.5/10 | README chính đầy đủ, README_PROJECT đã được đánh dấu deprecated |
-| Code pipeline | 7/10 | Có loader, preprocessing, feature, training, DL, SHAP, app |
-| Tính tái lập | 6.5/10 | Có hướng dẫn chạy nhưng thiếu kết quả mẫu và test |
-| Phương pháp ML/DL | 7/10 | Đa dạng mô hình, nhưng phần DL cần giải thích kỹ hơn |
-| Trình bày GitHub | 6.5/10 | Cần thêm About, topics, release, screenshot |
+| README/tài liệu | 8.6/10 | Đã bổ sung phần kết quả LOSO, hình minh họa, ghi chú phương pháp, limitations |
+| Code pipeline | 7.8/10 | Có thêm script tổng hợp benchmark tự động và artifact summary track được |
+| Tính tái lập | 8.0/10 | Có kết quả mẫu có thể kiểm chứng (`results_summary`), test cơ bản đã có |
+| Phương pháp ML/DL | 7.8/10 | Đa dạng mô hình và đã làm rõ feature-based DL trong README |
+| Trình bày GitHub | 7.0/10 | Còn thiếu About/topics/release/screenshot giao diện |
 | Giá trị demo | 8/10 | Có Streamlit, phù hợp trình bày đồ án |
 
 ---
 
 ## 7. Kết Luận
 
-Repo `TotNghiep` đã có nền tảng tốt cho một đồ án về phát hiện stress từ tín hiệu sinh lý. Điểm mạnh là có pipeline tương đối đầy đủ, có nhiều mô hình, có SHAP và có demo Streamlit. Tuy nhiên, để repo thuyết phục hơn khi nộp hoặc bảo vệ, cần ưu tiên:
+Repo `TotNghiep` hiện đã đạt mức hoàn thiện tốt cho đồ án về phát hiện stress từ tín hiệu sinh lý. Các hạng mục quan trọng trước khi nộp như bảng kết quả thực nghiệm, confusion matrix, biểu đồ so sánh mô hình, SHAP top features, LICENSE và phần limitations đã được bổ sung.
 
-1. Duy trì README là nguồn sự thật duy nhất và giữ tài liệu phụ ở dạng redirect.
-2. Bổ sung kết quả thực nghiệm.
-3. Thêm hình ảnh minh họa.
-4. Giải thích rõ cách dùng học sâu trên vector đặc trưng.
-5. Tăng tính tái lập bằng test, script chạy và phiên bản thư viện rõ ràng.
+Các ưu tiên còn lại để tăng điểm khi review:
 
-Nếu hoàn thiện các mục trên, repo có thể nâng từ khoảng **7/10** lên **8.5–9/10**.
+1. Cập nhật GitHub About + topics + release (`v1.0-thesis`).
+2. Bổ sung script chạy tổng (`run_all.sh`/`Makefile`) và pin phiên bản thư viện rõ ràng.
+3. Tăng độ sâu nghiên cứu: raw-signal DL baseline, ablation theo device, phân tích lỗi theo subject.
+
+Nếu hoàn thiện các mục trên, repo có thể nâng từ khoảng **8.2/10** lên **8.8–9.2/10**.
 
 ---
 
