@@ -3,7 +3,7 @@
 **Repository:** <https://github.com/xanhhangreal/TotNghiep>  
 **Ngày kiểm tra:** 2026-05-13  
 **Chủ đề:** Phát hiện trạng thái căng thẳng từ tín hiệu sinh lý đa phương thức bằng học máy và học sâu  
-**Đánh giá tổng quan:** **8.2/10**
+**Đánh giá tổng quan:** **8.4/10**
 
 > Nhận xét ngắn: Repo đã được cải thiện rõ rệt ở phần kết quả thực nghiệm có thể kiểm chứng (bảng + hình + file tổng hợp tracked), tài liệu README và giấy phép. Các việc còn lại chủ yếu là hoàn thiện mức sản phẩm GitHub (About/Topics/Release) và tăng chiều sâu nghiên cứu (raw-signal DL, ablation, error analysis).
 
@@ -228,6 +228,7 @@ Repo có thư mục `references/` chứa tài liệu PDF. Việc này không sai
 Ghi chú hiện trạng:
 - Đã có `results_summary/` với CSV + markdown + figures được track trong git.
 - Đã có script `src/build_results_summary.py` để build tự động từ các file JSON mới nhất trong `results/`.
+- Đã có script `src/analyze_loso_errors.py` để phân tích subject khó từ kết quả LOSO.
 - Đã bổ sung ảnh demo giao diện tại `assets/demo_dashboard.png`.
 - Hai mục `GitHub About` và `topics` chưa cập nhật được tự động do máy hiện chưa đăng nhập `gh auth`.
 
@@ -259,7 +260,7 @@ gh repo edit xanhhangreal/TotNghiep --add-topic stress-detection --add-topic wes
   - chest only.
   - both.
 - [x] So sánh 2-class và 3-class rõ ràng.
-- [ ] Phân tích lỗi theo từng subject.
+- [x] Phân tích lỗi theo từng subject.
 - [x] Thêm phần limitations trong README hoặc báo cáo.
 
 ---
@@ -327,7 +328,7 @@ Các ưu tiên còn lại để tăng điểm khi review:
 2. Mở rộng test cho preprocessing/feature extraction và theo dõi pass/fail qua CI.
 3. Tăng độ sâu nghiên cứu: raw-signal DL baseline, ablation theo device, phân tích lỗi theo subject.
 
-Nếu hoàn thiện các mục trên, repo có thể nâng từ khoảng **8.2/10** lên **8.8–9.2/10**.
+Nếu hoàn thiện các mục trên, repo có thể nâng từ khoảng **8.4/10** lên **8.9–9.2/10**.
 
 ---
 

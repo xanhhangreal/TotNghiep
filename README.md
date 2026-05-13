@@ -287,6 +287,27 @@ Nguồn số liệu: `results_summary/final_benchmark_summary.csv` (được bui
 
 ![SHAP top features](results_summary/figures/shap_top_features.png)
 
+### Phân tích lỗi theo từng subject (LOSO)
+
+```bash
+# Windows
+.venv\Scripts\python.exe src/analyze_loso_errors.py
+
+# Linux / macOS
+python src/analyze_loso_errors.py
+```
+
+Artifact sinh ra:
+
+- `results_summary/subject_level_metrics.csv`
+- `results_summary/subject_error_analysis.csv`
+- `results_summary/subject_error_analysis.md`
+
+Theo bộ kết quả hiện tại, các subject khó nhất:
+
+- Binary: `S2`, `S3`, `S14` (Mean F1 thấp nhất khi tổng hợp trên 10 mô hình).
+- 3-class: `S2`, `S14`, `S10`.
+
 ---
 
 ## Chạy demo (Streamlit)
