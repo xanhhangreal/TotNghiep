@@ -228,7 +228,16 @@ Repo có thư mục `references/` chứa tài liệu PDF. Việc này không sai
 Ghi chú hiện trạng:
 - Đã có `results_summary/` với CSV + markdown + figures được track trong git.
 - Đã có script `src/build_results_summary.py` để build tự động từ các file JSON mới nhất trong `results/`.
+- Đã bổ sung ảnh demo giao diện tại `assets/demo_dashboard.png`.
 - Hai mục `GitHub About` và `topics` chưa cập nhật được tự động do máy hiện chưa đăng nhập `gh auth`.
+
+Lệnh thực hiện nhanh sau khi đăng nhập GitHub CLI:
+
+```bash
+gh auth login
+gh repo edit xanhhangreal/TotNghiep --description "Stress detection from multimodal physiological signals using machine learning and deep learning on WESAD dataset."
+gh repo edit xanhhangreal/TotNghiep --add-topic stress-detection --add-topic wesad --add-topic physiological-signals --add-topic machine-learning --add-topic deep-learning --add-topic streamlit --add-topic shap
+```
 
 ### Mức 2 — Nên Làm Nếu Còn Thời Gian
 
@@ -238,9 +247,9 @@ Ghi chú hiện trạng:
   - [ ] tiền xử lý.
   - [ ] trích xuất đặc trưng.
   - [x] chia tập train/test.
-- [ ] Thêm `Makefile` hoặc script `run_all.sh`.
-- [ ] Pin phiên bản thư viện trong `requirements.txt`.
-- [ ] Thêm GitHub Actions để kiểm tra import/lint đơn giản.
+- [x] Thêm `Makefile` hoặc script `run_all.sh`.
+- [x] Pin phiên bản thư viện trong `requirements.txt`.
+- [x] Thêm GitHub Actions để kiểm tra import/lint đơn giản.
 
 ### Mức 3 — Nâng Cao Chất Lượng Nghiên Cứu
 
@@ -303,7 +312,7 @@ README nên có cấu trúc như sau:
 | Code pipeline | 7.8/10 | Có thêm script tổng hợp benchmark tự động và artifact summary track được |
 | Tính tái lập | 8.0/10 | Có kết quả mẫu có thể kiểm chứng (`results_summary`), test cơ bản đã có |
 | Phương pháp ML/DL | 7.8/10 | Đa dạng mô hình và đã làm rõ feature-based DL trong README |
-| Trình bày GitHub | 7.0/10 | Còn thiếu About/topics/release/screenshot giao diện |
+| Trình bày GitHub | 7.4/10 | Đã có screenshot giao diện; còn thiếu About/topics/release |
 | Giá trị demo | 8/10 | Có Streamlit, phù hợp trình bày đồ án |
 
 ---
@@ -315,7 +324,7 @@ Repo `TotNghiep` hiện đã đạt mức hoàn thiện tốt cho đồ án về
 Các ưu tiên còn lại để tăng điểm khi review:
 
 1. Cập nhật GitHub About + topics + release (`v1.0-thesis`).
-2. Bổ sung script chạy tổng (`run_all.sh`/`Makefile`) và pin phiên bản thư viện rõ ràng.
+2. Mở rộng test cho preprocessing/feature extraction và theo dõi pass/fail qua CI.
 3. Tăng độ sâu nghiên cứu: raw-signal DL baseline, ablation theo device, phân tích lỗi theo subject.
 
 Nếu hoàn thiện các mục trên, repo có thể nâng từ khoảng **8.2/10** lên **8.8–9.2/10**.

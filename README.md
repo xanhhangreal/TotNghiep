@@ -60,6 +60,7 @@ và **mô hình học sâu** (CNN-1D, UNet-1D, ResNet-1D).
 ├── models/                   # Mô hình đã lưu (gitignored)
 ├── results/                  # Kết quả huấn luyện JSON (gitignored)
 ├── results_summary/          # Bảng tổng hợp + hình minh hoạ (tracked)
+├── assets/                   # Ảnh minh họa (README/demo)
 └── references/               # Bài báo, tài liệu tham khảo (PDF)
 ```
 
@@ -204,6 +205,26 @@ Lệnh trên sẽ sinh các file tóm tắt trong `results_summary/`:
 - `dl_binary_loso_summary.csv`, `dl_3class_loso_summary.csv`
 - `figures/*.png` (model comparison, confusion matrix, SHAP)
 
+### Chạy toàn bộ pipeline tự động
+
+```bash
+# Linux / macOS
+bash run_all.sh
+
+# Hoặc chỉ định Python binary
+PYTHON_BIN=.venv/bin/python bash run_all.sh
+```
+
+`run_all.sh` sẽ chạy tuần tự: ML LOSO (2-class, 3-class), DL LOSO (all arch), build summary, và unit tests.
+
+### CI tự động (GitHub Actions)
+
+Repo có workflow kiểm tra cơ bản tại:
+
+- `.github/workflows/ci.yml`
+
+Workflow chạy syntax check (`compileall`) và unit tests (`pytest`) cho mỗi push/pull request vào `main`.
+
 ---
 
 ## Ghi chú phương pháp
@@ -275,6 +296,8 @@ streamlit run src/app.py
 ```
 
 Mở trình duyệt tại `http://localhost:8501`. Giao diện gồm 4 trang:
+
+![Streamlit Dashboard](assets/demo_dashboard.png)
 
 | Trang | Mô tả |
 |-------|--------|

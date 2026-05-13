@@ -61,3 +61,5 @@ logs/
 # Misc
 *.log
 .env
+.playwright-cli/
+output/
