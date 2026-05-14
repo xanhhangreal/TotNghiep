@@ -636,6 +636,13 @@ def _save(results: Dict, tag: str) -> Path:
     return p
 
 
+def _with_meta(results: Dict, meta: Dict) -> Dict:
+    """Attach experiment metadata without breaking existing parsers."""
+    out = dict(results)
+    out["_meta"] = dict(meta)
+    return out
+
+
 def _print_comparison(comp: Dict):
     print(f"\n{'='*70}")
     print(f"  {'Model':20s} {'Accuracy':>18s} {'F1':>18s}")
@@ -730,13 +737,25 @@ def main():
                       else [args.approach])
 
         for approach in approaches:
+            base_meta = {
+                "pipeline": "dl_feature_based",
+                "approach": approach,
+                "device": args.device,
+                "n_classes": int(n_cls),
+                "window_sec": float(window_sec),
+                "step_sec": float(step_sec),
+                "paper_protocol": bool(args.paper_protocol),
+                "epochs": int(args.epochs),
+                "batch_size": int(args.batch_size),
+                "lr": float(args.lr),
+            }
             if approach == "compare":
                 comp = compare_all(data, n_classes=n_cls,
                                    window_sec=window_sec,
                                    step_sec=step_sec,
                                    device_mode=args.device)
                 _print_comparison(comp)
-                _save(comp, f"compare_{n_cls}cls")
+                _save(_with_meta(comp, base_meta), f"compare_{n_cls}cls")
 
             elif approach == "loso":
                 for arch in archs:
@@ -747,7 +766,9 @@ def main():
                                      **train_kw)
                     if r:
                         _print_loso(r)
-                        _save(r, f"loso_{arch}_{n_cls}cls")
+                        meta = dict(base_meta)
+                        meta["arch"] = arch
+                        _save(_with_meta(r, meta), f"loso_{arch}_{n_cls}cls")
 
             elif approach == "subject_independent":
                 for arch in archs:
@@ -756,7 +777,9 @@ def main():
                         window_sec=window_sec, step_sec=step_sec,
                         device_mode=args.device, **train_kw)
                     if r:
-                        _save(r, f"independent_{arch}_{n_cls}cls")
+                        meta = dict(base_meta)
+                        meta["arch"] = arch
+                        _save(_with_meta(r, meta), f"independent_{arch}_{n_cls}cls")
 
             elif approach == "subject_dependent":
                 for arch in archs:
@@ -765,7 +788,9 @@ def main():
                         window_sec=window_sec, step_sec=step_sec,
                         device_mode=args.device, **train_kw)
                     if r:
-                        _save(r, f"dependent_{arch}_{n_cls}cls")
+                        meta = dict(base_meta)
+                        meta["arch"] = arch
+                        _save(_with_meta(r, meta), f"dependent_{arch}_{n_cls}cls")
 
     logger.info("DL training complete.")
 

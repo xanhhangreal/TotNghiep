@@ -44,7 +44,10 @@ và **mô hình học sâu** (CNN-1D, UNet-1D, ResNet-1D).
 │   ├── dl_models.py          # Kiến trúc PyTorch (CNN-1D, UNet-1D, ResNet-1D)
 │   ├── training.py           # Pipeline huấn luyện ML (CLI)
 │   ├── dl_training.py        # Pipeline huấn luyện DL (CLI)
+│   ├── raw_signal.py         # Tạo cửa sổ tín hiệu thô đa kênh cho DL baseline
+│   ├── raw_dl_training.py    # Baseline DL học trực tiếp trên raw signals (LOSO)
 │   ├── build_results_summary.py  # Tổng hợp bảng/biểu đồ benchmark từ JSON
+│   ├── build_device_ablation_summary.py  # Tổng hợp ablation theo device
 │   ├── shap_analysis.py      # Phân tích SHAP
 │   ├── app.py                # Ứng dụng demo Streamlit
 │   ├── setup_wesad.py        # Script tải & xác minh WESAD
@@ -187,6 +190,27 @@ python src/dl_training.py --arch all --approach compare
 
 Kết quả được lưu tại `results/` dưới dạng JSON.
 
+### Baseline DL trên raw-signal
+
+```bash
+# LOSO raw-signal baseline (device=both, binary)
+python src/raw_dl_training.py --classes binary --device both
+
+# Chạy cả binary + 3-class
+python src/raw_dl_training.py --classes both --device both
+```
+
+| Tham số | Mô tả | Mặc định |
+|---------|--------|----------|
+| `--target-sr` | Tần số resample dùng cho raw windows | `32` |
+| `--window` | Kích thước cửa sổ (giây) | `60` |
+| `--step` | Bước trượt (giây) | `30` |
+| `--epochs` | Số epoch tối đa | `100` |
+| `--batch-size` | Batch size | `64` |
+
+Kết quả raw baseline được lưu tại `results/` với pattern:
+`dl_loso_rawcnn1d_<device>_<2cls|3cls>_<timestamp>.json`.
+
 ### Tổng hợp bảng + biểu đồ benchmark
 
 ```bash
@@ -215,7 +239,8 @@ bash run_all.sh
 PYTHON_BIN=.venv/bin/python bash run_all.sh
 ```
 
-`run_all.sh` sẽ chạy tuần tự: ML LOSO (2-class, 3-class), DL LOSO (all arch), build summary, và unit tests.
+`run_all.sh` sẽ chạy tuần tự: ML LOSO (2-class, 3-class), DL LOSO (all arch),
+raw-signal baseline (tuỳ chọn qua `RUN_RAW_BASELINE=1`), build summary, và unit tests.
 
 ### CI tự động (GitHub Actions)
 
@@ -233,7 +258,7 @@ Workflow chạy syntax check (`compileall`) và unit tests (`pytest`) cho mỗi 
 - **ML models** (RF/LR/SVM/DT/AdaBoost/LDA/KNN) học trực tiếp trên vector đặc trưng này.
 - **DL models** (CNN-1D/UNet-1D/ResNet-1D) cũng học trên vector đặc trưng (không học trực tiếp waveform thô).
 - Đây là lựa chọn có chủ đích để so sánh công bằng ML vs DL trên cùng đầu vào đặc trưng.
-- Baseline raw-signal DL chưa được đưa vào nhánh chính ở phiên bản hiện tại.
+- Repo đã bổ sung baseline **raw-signal DL** riêng (`src/raw_dl_training.py`) để đối chiếu với feature-based pipeline.
 
 ---
 
@@ -303,6 +328,18 @@ Artifact sinh ra:
 - `results_summary/subject_error_analysis.csv`
 - `results_summary/subject_error_analysis.md`
 
+### Ablation theo thiết bị (`wrist`, `chest`, `both`)
+
+```bash
+# Tổng hợp ablation từ các file LOSO JSON mới nhất
+python src/build_device_ablation_summary.py
+```
+
+Artifact sinh ra:
+
+- `results_summary/device_ablation_summary.csv`
+- `results_summary/device_ablation_summary.md`
+
 Theo bộ kết quả hiện tại, các subject khó nhất:
 
 - Binary: `S2`, `S3`, `S14` (Mean F1 thấp nhất khi tổng hợp trên 10 mô hình).
@@ -367,8 +404,8 @@ docker run -p 8501:8501 stress-detection
 
 ## Hạn chế
 
-- Kết quả hiện tập trung vào feature-based pipeline; chưa có baseline DL học trực tiếp trên raw signals.
-- Chưa có ablation đầy đủ theo từng nguồn cảm biến (`wrist`, `chest`, `both`) trong README.
+- Baseline raw-signal DL hiện là mô hình gọn (`RawCNN1D`); chưa mở rộng sang nhiều kiến trúc raw-signal khác.
+- Artifact ablation theo device phụ thuộc vào việc đã chạy đầy đủ các thí nghiệm LOSO tương ứng.
 - Chưa công bố tập test ngoài WESAD, nên khả năng tổng quát liên miền cần được kiểm chứng thêm.
 - Một số model lưu trước đây có thể phát sinh cảnh báo khác phiên bản `scikit-learn` khi load lại.
 

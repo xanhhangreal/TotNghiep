@@ -274,6 +274,13 @@ def _save(results: Dict, tag: str) -> Path:
     return p
 
 
+def _with_meta(results: Dict, meta: Dict) -> Dict:
+    """Attach experiment metadata without breaking existing parsers."""
+    out = dict(results)
+    out["_meta"] = dict(meta)
+    return out
+
+
 def _print_table(results: Dict, approach: str):
     print(f"\n{'='*65}\n  {approach}\n{'='*65}")
     if approach == "subject_dependent":
@@ -332,15 +339,26 @@ def main():
 
     for approach in approaches:
         logger.info("\n%s  %s  %s", "#" * 20, approach, "#" * 20)
+        exp_meta = {
+            "pipeline": "ml_feature_based",
+            "approach": approach,
+            "device": args.device,
+            "n_classes": args.n_classes,
+            "window_sec": float(w),
+            "step_sec": float(s),
+            "paper_protocol": bool(args.paper_protocol),
+        }
         if approach == "subject_dependent":
             r = train_subject_dependent(data, window_sec=w, step_sec=s)
-            _print_table(r, approach); _save(r, approach)
+            _print_table(r, approach)
+            _save(_with_meta(r, exp_meta), approach)
         elif approach == "subject_independent":
             r, _ = train_subject_independent(data, window_sec=w, step_sec=s)
-            _save(r, approach)
+            _save(_with_meta(r, exp_meta), approach)
         elif approach == "loso":
             r = train_loso(data, window_sec=w, step_sec=s)
-            _print_table(r, approach); _save(r, approach)
+            _print_table(r, approach)
+            _save(_with_meta(r, exp_meta), approach)
 
     logger.info("Training complete.")
 
