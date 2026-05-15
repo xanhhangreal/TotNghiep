@@ -64,7 +64,10 @@ và **mô hình học sâu** (CNN-1D, UNet-1D, ResNet-1D).
 ├── results/                  # Kết quả huấn luyện JSON (gitignored)
 ├── results_summary/          # Bảng tổng hợp + hình minh hoạ (tracked)
 ├── docs/                     # Tài liệu tái lập/thuyết minh bổ sung
-│   └── reproduce.md
+│   ├── methodology.md
+│   ├── results.md
+│   ├── reproduce.md
+│   └── reproducibility.md
 ├── assets/                   # Ảnh minh họa (README/demo)
 └── references/               # Bài báo, tài liệu tham khảo (PDF)
 ```
@@ -245,6 +248,7 @@ PYTHON_BIN=.venv/bin/python bash run_all.sh
 raw-signal baseline (tuỳ chọn qua `RUN_RAW_BASELINE=1`), build summary, và unit tests.
 
 Chi tiết tái lập đầy đủ xem tại: `docs/reproduce.md`.
+Tài liệu phục vụ viết báo cáo: `docs/methodology.md`, `docs/results.md`.
 
 ### CI tự động (GitHub Actions)
 
