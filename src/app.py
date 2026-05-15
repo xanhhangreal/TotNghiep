@@ -5,6 +5,7 @@ Launch:
 """
 
 import json
+from datetime import datetime
 from pathlib import Path
 
 import numpy as np
@@ -32,9 +33,39 @@ st.set_page_config(
 )
 
 
+def _fmt_mtime(path: Path) -> str:
+    try:
+        ts = datetime.fromtimestamp(path.stat().st_mtime)
+        return ts.strftime("%Y-%m-%d %H:%M:%S")
+    except Exception:
+        return "unknown"
+
+
+def _render_medical_disclaimer() -> None:
+    st.warning(
+        "Research-use only: predictions are for study/demo purposes and "
+        "must not be used for medical diagnosis or treatment decisions."
+    )
+
+
+def _predictor_file_requirements() -> None:
+    with st.expander("Input format requirements", expanded=False):
+        st.markdown(
+            """
+- This predictor consumes **feature CSV** (numeric columns), not raw waveform files.
+- Feature CSV should be generated from the same preprocessing/windowing pipeline.
+- Raw sensor sampling rates in WESAD:
+  - Wrist: `BVP=64Hz`, `EDA=4Hz`, `TEMP=4Hz`, `ACC=32Hz`
+  - Chest: `ECG/EMG/EDA/Temp/Resp/ACC=700Hz`
+- Output `confidence` is the predicted-class probability from the current model.
+"""
+        )
+
+
 def main():
     st.title("🧠 Stress Detection")
     st.caption("Multimodal WESAD pipeline (ML + DL)")
+    _render_medical_disclaimer()
     st.divider()
 
     page = st.sidebar.radio(
@@ -80,6 +111,7 @@ Chest (RespiBAN): ECG, EMG, EDA, Temp, Resp, ACC
 
 def predictor():
     st.header("Stress Predictor")
+    _predictor_file_requirements()
     model_type = st.radio(
         "Model type",
         ["ML (sklearn)", "DL (PyTorch)"],
@@ -93,16 +125,26 @@ def predictor():
 
 def _predictor_ml():
     model = None
+    selected_path = None
     model_files = sorted(MODELS_DIR.glob("*.joblib")) if MODELS_DIR.exists() else []
     if model_files:
-        sel = st.selectbox("Trained model", [f.stem for f in model_files], key="ml_model_sel")
+        model_by_name = {f.stem: f for f in model_files}
+        sel = st.selectbox("Trained model", list(model_by_name.keys()), key="ml_model_sel")
+        selected_path = model_by_name[sel]
         try:
-            model = StressModel.load(str(MODELS_DIR / f"{sel}.joblib"))
+            model = StressModel.load(str(selected_path))
             st.success(f"Loaded `{sel}` ({model.model_type})")
+            expected = int(getattr(model.scaler, "n_features_in_", 0) or 0)
+            st.caption(
+                f"Model file: `{selected_path.name}` | Updated: {_fmt_mtime(selected_path)} "
+                f"| Expected numeric features: {expected}"
+            )
         except Exception as e:
             st.warning(f"Load failed: {e}")
     else:
         st.info("No trained ML models found in `models/`.")
+
+    st.caption("`confidence` = predicted-class probability (not a clinical certainty score).")
 
     st.subheader("Manual Input")
     c1, c2, c3 = st.columns(3)
@@ -188,9 +230,11 @@ def _predictor_dl():
         st.info("No DL checkpoints found in `models/`.")
         return
 
-    sel = st.selectbox("DL checkpoint", [f.stem for f in pt_files], key="dl_model_sel")
+    ckpt_by_name = {f.stem: f for f in pt_files}
+    sel = st.selectbox("DL checkpoint", list(ckpt_by_name.keys()), key="dl_model_sel")
+    selected_path = ckpt_by_name[sel]
     try:
-        model, ckpt = load_dl_model(str(MODELS_DIR / f"{sel}.pt"), return_state=True)
+        model, ckpt = load_dl_model(str(selected_path), return_state=True)
         st.success(f"Loaded `{sel}` ({type(model).__name__})")
     except Exception as e:
         st.warning(f"Load failed: {e}")
@@ -200,6 +244,19 @@ def _predictor_dl():
     n_classes = int(ckpt.get("n_classes", 2) or 2)
     scaler = ckpt.get("scaler")
     label_map = STRESS_LABELS if n_classes == 2 else STRESS_LABELS_3CLASS
+    train_meta = ckpt.get("meta", {}) if isinstance(ckpt.get("meta"), dict) else {}
+
+    st.caption(
+        f"Checkpoint: `{selected_path.name}` | Updated: {_fmt_mtime(selected_path)} "
+        f"| Classes: {n_classes} | Expected numeric features: {n_features or 'unknown'} "
+        f"| Scaler in checkpoint: {'yes' if scaler is not None else 'no'}"
+    )
+    if train_meta:
+        st.caption(
+            f"Train subjects: {train_meta.get('train_subjects', 'n/a')} | "
+            f"Test subjects: {train_meta.get('test_subjects', 'n/a')}"
+        )
+    st.caption("`confidence` = predicted-class probability (not a clinical certainty score).")
 
     st.subheader("Predict From Feature CSV")
     f = st.file_uploader("CSV with numeric feature columns", type=["csv"], key="dl_csv")
@@ -339,17 +396,28 @@ def _show_placeholder():
 
 def docs():
     st.header("📚 Documentation")
+    st.markdown(
+        "- Full reproducibility guide: `docs/reproduce.md`\n"
+        "- Result artifacts: `results_summary/final_benchmark_summary.md` and "
+        "`results_summary/device_ablation_summary.md`"
+    )
     st.code(
         """# 1) Install deps
 pip install -r requirements.txt
 
-# 2) Train ML
-py -u src/training.py --approach all --device both --n-classes 2
+# 2) Train ML LOSO
+python src/training.py --approach loso --device both --n-classes 2
+python src/training.py --approach loso --device both --n-classes 3
 
-# 3) Train DL
-py -u src/dl_training.py --arch all --classes both --approach loso
+# 3) Train DL LOSO (feature-based + raw baseline)
+python src/dl_training.py --arch all --classes both --approach loso --device both
+python src/raw_dl_training.py --classes both --device both
 
-# 4) Run app
+# 4) Build summaries
+python src/build_results_summary.py
+python src/build_device_ablation_summary.py
+
+# 5) Run app
 streamlit run src/app.py""",
         language="bash",
     )

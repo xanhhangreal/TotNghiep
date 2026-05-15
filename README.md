@@ -63,6 +63,8 @@ và **mô hình học sâu** (CNN-1D, UNet-1D, ResNet-1D).
 ├── models/                   # Mô hình đã lưu (gitignored)
 ├── results/                  # Kết quả huấn luyện JSON (gitignored)
 ├── results_summary/          # Bảng tổng hợp + hình minh hoạ (tracked)
+├── docs/                     # Tài liệu tái lập/thuyết minh bổ sung
+│   └── reproduce.md
 ├── assets/                   # Ảnh minh họa (README/demo)
 └── references/               # Bài báo, tài liệu tham khảo (PDF)
 ```
@@ -242,6 +244,8 @@ PYTHON_BIN=.venv/bin/python bash run_all.sh
 `run_all.sh` sẽ chạy tuần tự: ML LOSO (2-class, 3-class), DL LOSO (all arch),
 raw-signal baseline (tuỳ chọn qua `RUN_RAW_BASELINE=1`), build summary, và unit tests.
 
+Chi tiết tái lập đầy đủ xem tại: `docs/reproduce.md`.
+
 ### CI tự động (GitHub Actions)
 
 Repo có workflow kiểm tra cơ bản tại:
@@ -274,11 +278,11 @@ Thiết lập: WESAD 15 subjects (S2-S17, trừ S1/S12), `device=both`, `window=
 | ML | RandomForest | 0.9691 +/- 0.0491 | 0.9695 +/- 0.0481 |
 | ML | SVM | 0.9663 +/- 0.0560 | 0.9669 +/- 0.0546 |
 | ML | LogisticRegression | 0.9662 +/- 0.0575 | 0.9647 +/- 0.0620 |
-| DL | UNet1D | 0.9576 +/- 0.0512 | 0.9578 +/- 0.0507 |
+| DL | UNet1D | 0.9640 +/- 0.0580 | 0.9637 +/- 0.0589 |
 | ML | KNN | 0.9548 +/- 0.0607 | 0.9545 +/- 0.0613 |
 | ML | LDA | 0.9512 +/- 0.0690 | 0.9497 +/- 0.0724 |
-| DL | ResNet1D | 0.9292 +/- 0.0924 | 0.9295 +/- 0.0906 |
-| DL | CNN1D | 0.9258 +/- 0.0872 | 0.9267 +/- 0.0863 |
+| DL | CNN1D | 0.9306 +/- 0.0787 | 0.9316 +/- 0.0777 |
+| DL | ResNet1D | 0.9205 +/- 0.0803 | 0.9183 +/- 0.0833 |
 | ML | DecisionTree | 0.8650 +/- 0.1720 | 0.8612 +/- 0.1831 |
 
 ### Tri-class (3-class): Baseline vs Stress vs Amusement
@@ -287,14 +291,14 @@ Thiết lập: WESAD 15 subjects (S2-S17, trừ S1/S12), `device=both`, `window=
 |---|---|---:|---:|
 | ML | AdaBoost | 0.9247 +/- 0.0648 | 0.9211 +/- 0.0674 |
 | ML | RandomForest | 0.9205 +/- 0.0688 | 0.9088 +/- 0.0821 |
-| DL | UNet1D | 0.8656 +/- 0.0862 | 0.8574 +/- 0.0877 |
+| DL | UNet1D | 0.8955 +/- 0.0551 | 0.8839 +/- 0.0703 |
 | ML | SVM | 0.8753 +/- 0.0848 | 0.8540 +/- 0.1023 |
-| DL | CNN1D | 0.8503 +/- 0.1226 | 0.8473 +/- 0.1218 |
+| DL | CNN1D | 0.8556 +/- 0.1226 | 0.8524 +/- 0.1211 |
 | ML | LDA | 0.8586 +/- 0.1210 | 0.8422 +/- 0.1270 |
 | ML | DecisionTree | 0.8343 +/- 0.1280 | 0.8222 +/- 0.1245 |
 | ML | KNN | 0.8373 +/- 0.1055 | 0.8126 +/- 0.1109 |
 | ML | LogisticRegression | 0.8245 +/- 0.1256 | 0.8006 +/- 0.1305 |
-| DL | ResNet1D | 0.7961 +/- 0.1465 | 0.7821 +/- 0.1472 |
+| DL | ResNet1D | 0.7859 +/- 0.1537 | 0.7671 +/- 0.1628 |
 
 Nguồn số liệu: `results_summary/final_benchmark_summary.csv` (được build từ các file JSON mới nhất trong `results/`).
 
@@ -343,7 +347,7 @@ Artifact sinh ra:
 Theo bộ kết quả hiện tại, các subject khó nhất:
 
 - Binary: `S2`, `S3`, `S14` (Mean F1 thấp nhất khi tổng hợp trên 10 mô hình).
-- 3-class: `S2`, `S14`, `S10`.
+- 3-class: `S2`, `S10`, `S14`.
 
 ---
 
@@ -356,6 +360,8 @@ streamlit run src/app.py
 Mở trình duyệt tại `http://localhost:8501`. Giao diện gồm 4 trang:
 
 ![Streamlit Dashboard](assets/demo_dashboard.png)
+
+> **Disclaimer:** Kết quả chỉ phục vụ mục đích nghiên cứu/học tập, không dùng để chẩn đoán y khoa hoặc thay thế tư vấn chuyên môn.
 
 | Trang | Mô tả |
 |-------|--------|
