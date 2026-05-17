@@ -23,6 +23,12 @@ source .venv/bin/activate
 python -m pip install -r requirements.txt
 ```
 
+Neu can chay giao dien Streamlit de demo (khong bat buoc cho bao cao/khoa luan):
+
+```bash
+python -m pip install -r requirements-demo.txt
+```
+
 Neu may ban dung `py` thay vi `python`, co the thay the tuong ung trong cac lenh.
 
 ## 2) Chuan bi du lieu WESAD

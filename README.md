@@ -21,7 +21,7 @@ và **mô hình học sâu** (CNN-1D, UNet-1D, ResNet-1D).
 5. [Chạy huấn luyện mô hình](#chạy-huấn-luyện-mô-hình)
 6. [Ghi chú phương pháp](#ghi-chú-phương-pháp)
 7. [Kết quả thực nghiệm (LOSO)](#kết-quả-thực-nghiệm-loso)
-8. [Chạy demo (Streamlit)](#chạy-demo-streamlit)
+8. [Chạy demo tùy chọn (Streamlit)](#chạy-demo-tùy-chọn-streamlit)
 9. [Triển khai (Deploy)](#triển-khai-deploy)
 10. [Hạn chế](#hạn-chế)
 11. [Tài liệu tham khảo](#tài-liệu-tham-khảo)
@@ -32,7 +32,8 @@ và **mô hình học sâu** (CNN-1D, UNet-1D, ResNet-1D).
 
 ```
 ├── README.md                 # Hướng dẫn sử dụng (file này)
-├── requirements.txt          # Danh sách thư viện Python
+├── requirements.txt          # Phụ thuộc cốt lõi (phục vụ thực nghiệm/báo cáo)
+├── requirements-demo.txt     # Phụ thuộc tùy chọn cho demo Streamlit
 ├── .gitignore
 │
 ├── src/                      # MÃ NGUỒN
@@ -49,7 +50,7 @@ và **mô hình học sâu** (CNN-1D, UNet-1D, ResNet-1D).
 │   ├── build_results_summary.py  # Tổng hợp bảng/biểu đồ benchmark từ JSON
 │   ├── build_device_ablation_summary.py  # Tổng hợp ablation theo device
 │   ├── shap_analysis.py      # Phân tích SHAP
-│   ├── app.py                # Ứng dụng demo Streamlit
+│   ├── app.py                # Ứng dụng demo Streamlit (tùy chọn)
 │   ├── setup_wesad.py        # Script tải & xác minh WESAD
 │   └── notebooks/
 │       └── 01_data_exploration.ipynb
@@ -113,6 +114,12 @@ source .venv/bin/activate
 pip install -r requirements.txt
 ```
 
+Nếu cần chạy giao diện demo:
+
+```bash
+pip install -r requirements-demo.txt
+```
+
 > **Lưu ý GPU**: Nếu máy có NVIDIA GPU và muốn tận dụng CUDA, cài PyTorch theo
 > hướng dẫn tại [pytorch.org/get-started](https://pytorch.org/get-started/locally/)
 > **trước** khi chạy lệnh trên.
@@ -121,7 +128,7 @@ pip install -r requirements.txt
 
 ```bash
 python -c "import torch; print('PyTorch', torch.__version__); print('CUDA:', torch.cuda.is_available())"
-python -c "import streamlit; print('Streamlit', streamlit.__version__)"
+python -c "import sklearn, pandas; print('sklearn/pandas OK')"
 ```
 
 ---
@@ -134,8 +141,8 @@ python -c "import streamlit; print('Streamlit', streamlit.__version__)"
 python src/setup_wesad.py
 ```
 
-Script sẽ tải WESAD (~2.2 GB) từ server Uni Siegen, giải nén vào `data/WESAD/`,
-và kiểm tra tất cả 15 subjects.
+Script sẽ hỏi lựa chọn phương thức tải (`1/2/3`), sau đó tải WESAD (~2.2 GB),
+giải nén vào `data/WESAD/` và kiểm tra tất cả 15 subjects.
 
 ### Thủ công
 
@@ -165,8 +172,8 @@ python src/training.py --approach loso --device both --n-classes 3
 
 | Tham số | Mô tả | Mặc định |
 |---------|--------|----------|
-| `--approach` | `subject_dependent`, `subject_independent`, `loso`, `all` | `all` |
-| `--device`   | `wrist`, `chest`, `both` | `both` |
+| `--approach` | `subject_dependent`, `subject_independent`, `loso`, `all` | `subject_dependent` |
+| `--device`   | `wrist`, `chest`, `both` | `wrist` |
 | `--n-classes` | `2` (binary) hoặc `3` (3-class) | `2` |
 | `--window`   | Kích thước cửa sổ (giây) | `60` |
 | `--step`     | Bước trượt (giây) | `30` |
@@ -225,6 +232,8 @@ Kết quả raw baseline được lưu tại `results/` với pattern:
 # Linux / macOS
 python src/build_results_summary.py
 ```
+
+> Lưu ý: cần có tối thiểu 2 file `results/loso_*.json` (thường là 1 file binary + 1 file 3-class) được tạo từ bước huấn luyện trước đó.
 
 Lệnh trên sẽ sinh các file tóm tắt trong `results_summary/`:
 
@@ -330,6 +339,8 @@ Nguồn số liệu: `results_summary/final_benchmark_summary.csv` (được bui
 python src/analyze_loso_errors.py
 ```
 
+> Lưu ý: script này cũng cần các file `results/loso_*.json` đã có sẵn.
+
 Artifact sinh ra:
 
 - `results_summary/subject_level_metrics.csv`
@@ -343,6 +354,8 @@ Artifact sinh ra:
 python src/build_device_ablation_summary.py
 ```
 
+> Lưu ý: script cần các file kết quả LOSO tương thích từ `training.py`, `dl_training.py` hoặc `raw_dl_training.py`.
+
 Artifact sinh ra:
 
 - `results_summary/device_ablation_summary.csv`
@@ -355,7 +368,14 @@ Theo bộ kết quả hiện tại, các subject khó nhất:
 
 ---
 
-## Chạy demo (Streamlit)
+## Chạy demo tùy chọn (Streamlit)
+
+> Phần này không bắt buộc cho pipeline phục vụ khóa luận. Chỉ cần khi bạn muốn trình diễn giao diện.
+
+```bash
+pip install -r requirements-demo.txt
+python -c "import streamlit; print('Streamlit', streamlit.__version__)"
+```
 
 ```bash
 streamlit run src/app.py
@@ -378,6 +398,8 @@ Mở trình duyệt tại `http://localhost:8501`. Giao diện gồm 4 trang:
 
 ## Triển khai (Deploy)
 
+> Mục này áp dụng cho ứng dụng Streamlit demo (tùy chọn), không bắt buộc cho pipeline thực nghiệm.
+
 ### Cách 1: Local
 
 ```bash
@@ -390,7 +412,8 @@ streamlit run src/app.py --server.port 8501 --server.address 0.0.0.0
 FROM python:3.11-slim
 WORKDIR /app
 COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+COPY requirements-demo.txt .
+RUN pip install --no-cache-dir -r requirements-demo.txt
 COPY src/ src/
 COPY models/ models/
 COPY results/ results/

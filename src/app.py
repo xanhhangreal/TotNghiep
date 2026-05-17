@@ -402,7 +402,7 @@ def docs():
         "`results_summary/device_ablation_summary.md`"
     )
     st.code(
-        """# 1) Install deps
+        """# 1) Install core deps
 pip install -r requirements.txt
 
 # 2) Train ML LOSO
@@ -417,7 +417,8 @@ python src/raw_dl_training.py --classes both --device both
 python src/build_results_summary.py
 python src/build_device_ablation_summary.py
 
-# 5) Run app
+# 5) (Optional) install demo deps + run app
+pip install -r requirements-demo.txt
 streamlit run src/app.py""",
         language="bash",
     )
